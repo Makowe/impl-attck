@@ -1,5 +1,10 @@
 import numpy as np
 
+import logger
+
+#############
+# CONSTANTS #
+#############
 
 S_BOX = np.array([
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -18,39 +23,125 @@ S_BOX = np.array([
     0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E, 0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E,
     0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
     0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16,
-])
-
+], dtype=np.uint8)
 
 R_CON = np.array([
     0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab
-])
+], dtype=np.uint8)
 
+NUM_ROUNDS = 10
 
+#############
+# FUNCTIONS #
+#############
+
+@logger.log_state
 def add_round_key(state: np.ndarray, r_key: np.ndarray) -> np.ndarray:
     return state ^ r_key
 
 
+@logger.log_state
 def sub_bytes(state: np.ndarray) -> np.ndarray:
-    return np.array([S_BOX[b] for b in state])
+    return np.array([S_BOX[b] for b in state], dtype=np.uint8)
 
 
+@logger.log_state
 def shift_rows(state: np.ndarray) -> np.ndarray:
     res = np.zeros((16), dtype=np.uint8)
     # row 1 
-    res[0:4] = state[0:4]
+    res[0] = state[0]
+    res[4] = state[4]
+    res[8] = state[8]
+    res[12] = state[12]
 
     # row 2
-    res[4:7] = state[5:8]
-    res[8] = state[4]
+    res[1] = state[5]
+    res[5] = state[9]
+    res[9] = state[13]
+    res[13] = state[1]
     
-    # row 2
-    res[8:10] = state[10:12]
-    res[10:12] = state[8:10]
-
     # row 3
-    res[12] = state[15]
-    res[13:16] = state[12:15]
+    res[2] = state[10]
+    res[6] = state[14]
+    res[10] = state[2]
+    res[14] = state[6]
 
+    # row 4
+    res[3] = state[15]
+    res[7] = state[3]
+    res[11] = state[7]
+    res[15] = state[11]
+    return res
+    
+
+@logger.log_state
+def mix_cols(state: np.ndarray) -> np.ndarray:
+    cols = state.reshape(4,4)
+    return np.array([_mix_col(col) for col in cols]).reshape(16)
+
+
+def expand_key(org_key: np.ndarray) -> np.ndarray:
+    res = np.zeros((NUM_ROUNDS+1, 16), dtype=np.uint8)
+    res[0] = org_key
+
+    for i in range(1, NUM_ROUNDS+1):
+        # set variable key to 16 byte buffer which is currently empty.
+        key = res[i]
+
+        # copy previous round key into current round key
+        key[:] = res[i-1]
+
+        buf0 = S_BOX[key[13]]
+        buf1 = S_BOX[key[14]]
+        buf2 = S_BOX[key[15]]
+        buf3 = S_BOX[key[12]]
+
+        key[0] ^= buf0 ^ R_CON[i-1]
+        key[1] ^= buf1
+        key[2] ^= buf2
+        key[3] ^= buf3
+        key[4] ^= key[0]
+        key[5] ^= key[1]
+        key[6] ^= key[2]
+        key[7] ^= key[3]
+        key[8] ^= key[4]
+        key[9] ^= key[5]
+        key[10] ^= key[6]
+        key[11] ^= key[7]
+        key[12] ^= key[8]
+        key[13] ^= key[9]
+        key[14] ^= key[10]
+        key[15] ^= key[11]
+
+    return res
+
+
+def encrypt_block(plaintext: np.ndarray, key: np.ndarray) -> np.ndarray:
+    expanded_key = expand_key(key)
+    st = plaintext
+    round = 0
+    
+    # 9 Rounds
+    while round < NUM_ROUNDS-1:
+        st = add_round_key(st, expanded_key[round])
+        st = sub_bytes(st)
+        st = shift_rows(st)
+        st = mix_cols(st)
+        round += 1
+
+    # 10th Round
+    st = add_round_key(st, expanded_key[round])
+    st = sub_bytes(st)
+    st = shift_rows(st)
+
+    # Final add round key
+    st = add_round_key(st, expanded_key[round+1])
+    return st
+
+
+###########
+# PRIVATE #
+###########
 
 def _xtime(x: np.uint8) -> np.uint8:
     return ((x << 1) ^ 0x1b) if (x & 0x80) else (x << 1)
@@ -61,21 +152,8 @@ def _mix_col(col: np.ndarray) -> np.ndarray:
     e = col[0] ^ col[1] ^ col[2] ^ col[3]
 
     res[0] = col[0] ^ e ^ _xtime(col[0] ^ col[1])
-    # TODO: finish this
-
-def mix_cols(state: np.ndarray) -> np.ndarray:
-    cols = state.reshape(4,4, order="F")
-    return np.reshape(16, [_mix_col(col) for col in cols], order="F")
-
-
-def expand_key(key: np.ndarray) -> np.ndarray:
-    res = np.zeroes(16, 16, dtype=np.uint8)
-
-    # TODO: Implement Expand Key
+    res[1] = col[1] ^ e ^ _xtime(col[1] ^ col[2])
+    res[2] = col[2] ^ e ^ _xtime(col[2] ^ col[3])
+    res[3] = col[3] ^ e ^ _xtime(col[3] ^ col[0])
 
     return res
-
-
-def encrypt_block(plaintext: np.ndarray, key: np.ndarray) -> np.ndarray:
-    # TODO: Implement encrypt
-    pass

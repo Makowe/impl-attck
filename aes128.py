@@ -6,6 +6,7 @@ import logger
 # CONSTANTS #
 #############
 
+# fmt: off
 S_BOX = np.array([
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
     0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
@@ -24,16 +25,19 @@ S_BOX = np.array([
     0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
     0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16,
 ], dtype=np.uint8)
+# fmt: on
 
-R_CON = np.array([
-    0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab
-], dtype=np.uint8)
+R_CON = np.array(
+    [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB],
+    dtype=np.uint8,
+)
 
 NUM_ROUNDS = 10
 
 #############
 # FUNCTIONS #
 #############
+
 
 @logger.log_state
 def add_round_key(state: np.ndarray, r_key: np.ndarray) -> np.ndarray:
@@ -48,7 +52,7 @@ def sub_bytes(state: np.ndarray) -> np.ndarray:
 @logger.log_state
 def shift_rows(state: np.ndarray) -> np.ndarray:
     res = np.zeros((16), dtype=np.uint8)
-    # row 1 
+    # row 1
     res[0] = state[0]
     res[4] = state[4]
     res[8] = state[8]
@@ -59,7 +63,7 @@ def shift_rows(state: np.ndarray) -> np.ndarray:
     res[5] = state[9]
     res[9] = state[13]
     res[13] = state[1]
-    
+
     # row 3
     res[2] = state[10]
     res[6] = state[14]
@@ -72,31 +76,31 @@ def shift_rows(state: np.ndarray) -> np.ndarray:
     res[11] = state[7]
     res[15] = state[11]
     return res
-    
+
 
 @logger.log_state
 def mix_cols(state: np.ndarray) -> np.ndarray:
-    cols = state.reshape(4,4)
+    cols = state.reshape(4, 4)
     return np.array([_mix_col(col) for col in cols]).reshape(16)
 
 
 def expand_key(org_key: np.ndarray) -> np.ndarray:
-    res = np.zeros((NUM_ROUNDS+1, 16), dtype=np.uint8)
+    res = np.zeros((NUM_ROUNDS + 1, 16), dtype=np.uint8)
     res[0] = org_key
 
-    for i in range(1, NUM_ROUNDS+1):
+    for i in range(1, NUM_ROUNDS + 1):
         # set variable key to 16 byte buffer which is currently empty.
         key = res[i]
 
         # copy previous round key into current round key
-        key[:] = res[i-1]
+        key[:] = res[i - 1]
 
         buf0 = S_BOX[key[13]]
         buf1 = S_BOX[key[14]]
         buf2 = S_BOX[key[15]]
         buf3 = S_BOX[key[12]]
 
-        key[0] ^= buf0 ^ R_CON[i-1]
+        key[0] ^= buf0 ^ R_CON[i - 1]
         key[1] ^= buf1
         key[2] ^= buf2
         key[3] ^= buf3
@@ -120,9 +124,9 @@ def encrypt_block(plaintext: np.ndarray, key: np.ndarray) -> np.ndarray:
     expanded_key = expand_key(key)
     st = plaintext
     round = 0
-    
+
     # 9 Rounds
-    while round < NUM_ROUNDS-1:
+    while round < NUM_ROUNDS - 1:
         st = add_round_key(st, expanded_key[round])
         st = sub_bytes(st)
         st = shift_rows(st)
@@ -135,7 +139,7 @@ def encrypt_block(plaintext: np.ndarray, key: np.ndarray) -> np.ndarray:
     st = shift_rows(st)
 
     # Final add round key
-    st = add_round_key(st, expanded_key[round+1])
+    st = add_round_key(st, expanded_key[round + 1])
     return st
 
 
@@ -143,8 +147,9 @@ def encrypt_block(plaintext: np.ndarray, key: np.ndarray) -> np.ndarray:
 # PRIVATE #
 ###########
 
+
 def _xtime(x: np.uint8) -> np.uint8:
-    return ((x << 1) ^ 0x1b) if (x & 0x80) else (x << 1)
+    return ((x << 1) ^ 0x1B) if (x & 0x80) else (x << 1)
 
 
 def _mix_col(col: np.ndarray) -> np.ndarray:

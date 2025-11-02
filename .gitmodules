@@ -1,0 +1,6 @@
+[submodule "chipwhisperer"]
+	path = chipwhisperer
+	url = https://github.com/Makowe/chipwhisperer
+[submodule "chipwhisperer-traces"]
+	path = chipwhisperer-traces
+	url = https://github.com/newaetech/chipwhisperer-traces

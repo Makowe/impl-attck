@@ -69,7 +69,7 @@ def shift_rows(state: np.ndarray) -> np.ndarray:
     res[6] = state[14]
     res[10] = state[2]
     res[14] = state[6]
-
+    
     # row 4
     res[3] = state[15]
     res[7] = state[3]

@@ -1,0 +1,3 @@
+Javascript Error: IPython is not defined'. 
+Instead of "%matplotlib notebook", write "%matplotlib widget".
+Also install ipympl

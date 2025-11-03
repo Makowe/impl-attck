@@ -30,6 +30,9 @@ class Simon:
         self.key_size_bytes = (n * m) // 8
         """Key size in bytes."""
 
+        self.mask = ~np.uint64(0) >> (64 - n)
+        """ Mask to apply on uint64 to keep only n bits."""
+
 
 SIMON_32_64 = Simon(16, 4, 0, 32)
 SIMON_48_72 = Simon(24, 3, 0, 36)
@@ -63,13 +66,11 @@ def encrypt_block(algo: Simon, plaintext: np.ndarray, key: np.ndarray) -> np.nda
     assert key.dtype == np.uint64
     assert plaintext.shape == (2,)
     assert key.shape == (algo.m,)
-    plaintext = clean_input(plaintext, algo.n)
-    key = clean_input(key, algo.n)
+    plaintext = clean_input(plaintext, algo)
+    key = clean_input(key, algo)
 
-    # Expand the key.
+    # Prepare buffers
     round_keys = expand_key(algo, key)
-
-    # Split plaintext into left and right words.
     x = plaintext[0]
     y = plaintext[1]
 
@@ -78,8 +79,8 @@ def encrypt_block(algo: Simon, plaintext: np.ndarray, key: np.ndarray) -> np.nda
         tmp = x
         x = (
             y
-            ^ (rotate_left(x, 1, algo.n) & rotate_left(x, 8, algo.n))
-            ^ rotate_left(x, 2, algo.n)
+            ^ (rotate_left(x, 1, algo) & rotate_left(x, 8, algo))
+            ^ rotate_left(x, 2, algo)
             ^ round_keys[i]
         )
         y = tmp
@@ -87,49 +88,70 @@ def encrypt_block(algo: Simon, plaintext: np.ndarray, key: np.ndarray) -> np.nda
     return np.array([x, y], dtype=np.uint64)
 
 
-def clean_input(input: np.ndarray, n: int) -> np.ndarray:
+def clean_input(input: np.ndarray, algo: Simon) -> np.ndarray:
     """Clean an array of words to ensure each only has n bits."""
-    mask = (np.uint64(1) << n) - 1  # mask to keep only n least significant bits.
-    return input & mask
+    return input & algo.mask
 
 
 def expand_key(algo: Simon, key: np.ndarray) -> np.ndarray:
 
     # Result array will have m keys, each m*n bits long.
     k = np.zeros((algo.t,), dtype=np.uint64)
-    k[0 : algo.m] = key
-
-    # Constant c = 2^n - 4
-    c = (np.uint64(1) << algo.n) - 4
+    for i in range(algo.m):
+        k[i] = key[algo.m - i - 1]
 
     for i in range(algo.m, algo.t):
-        tmp = rotate_left(k[i - 1], -3, algo.n)
+        tmp = rotate_left(k[i - 1], -3, algo)
         if algo.m == 4:
             tmp ^= k[i - 3]
-        tmp ^= rotate_left(tmp, -1, algo.n)
+        tmp ^= rotate_left(tmp, -1, algo)
 
         z_i = get_round_constant(algo.j, i - algo.m)
-        k[i] = invert(k[i - algo.m], algo.n) ^ tmp ^ z_i ^ 3
+        k[i] = invert(k[i - algo.m], algo) ^ tmp ^ z_i ^ 3
 
     return k
 
 
-def invert(word: np.uint64, n: int) -> np.uint64:
+def expand_key_alt(algo: Simon, key: np.ndarray) -> np.ndarray:
+    # Result array will have m keys, each m*n bits long.
+    k = np.zeros((algo.t,), dtype=np.uint64)
+    for i in range(algo.m):
+        k[i] = key[algo.m - i - 1]
+
+    # Constant c = 2^n - 4
+    c = (np.uint64(1) << algo.n) - 4
+
+    for i in range(0, algo.t - algo.m):
+        z_i = get_round_constant(algo.j, i)
+        if algo.m == 2:
+            tmp1 = rotate_left(k[i + 1], -3, algo)
+            tmp2 = rotate_left(tmp1, -1, algo)
+            k[i + algo.m] = c ^ z_i ^ k[i] ^ tmp1 ^ tmp2
+        if algo.m == 3:
+            tmp1 = rotate_left(k[i + 2], -3, algo)
+            tmp2 = rotate_left(tmp1, -1, algo)
+            k[i + algo.m] = c ^ z_i ^ k[i] ^ tmp1 ^ tmp2
+        if algo.m == 4:
+            tmp1 = rotate_left(k[i + 3], -3, algo) ^ k[i + 1]
+            tmp2 = rotate_left(tmp1, -1, algo)
+            k[i + algo.m] = c ^ z_i ^ k[i] ^ tmp1 ^ tmp2
+    return k
+
+
+def invert(word: np.uint64, algo: Simon) -> np.uint64:
     """Invert a word of n bits."""
-    mask: np.uint64 = np.left_shift(1, n, dtype=np.uint64) - 1
-    return (~word) & mask
+    if algo.n == 64:
+        return ~word
+    return (~word) & algo.mask
 
 
-def rotate_left(word: np.uint64, bits: int, n: int) -> np.uint64:
+def rotate_left(word: np.uint64, bits: int, algo: Simon) -> np.uint64:
     """Rotate a word left."""
-    mask: np.uint64 = np.left_shift(1, n, dtype=np.uint64) - 1
-    np.uint64((1 << n) - 1)  # mask to keep only n least significant bits.
-
     if bits >= 0:
-        return (word << bits | word >> (n - bits)) & mask
+        return (word << bits | word >> (algo.n - bits)) & algo.mask
     else:
         bits = -bits
-        return (word >> bits | word << (n - bits)) & mask
+        return (word >> bits | word << (algo.n - bits)) & algo.mask
 
 
 def get_round_constant(j: int, round: int) -> np.uint64:

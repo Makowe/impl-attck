@@ -119,7 +119,7 @@ def expand_key_alt(algo: Simon, key: np.ndarray) -> np.ndarray:
         k[i] = key[algo.m - i - 1]
 
     # Constant c = 2^n - 4
-    c = (np.uint64(1) << algo.n) - 4
+    c = (~np.uint64(0) >> (64 - algo.n)) - 3
 
     for i in range(0, algo.t - algo.m):
         z_i = get_round_constant(algo.j, i)

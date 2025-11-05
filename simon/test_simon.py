@@ -33,28 +33,28 @@ class TestSimon(unittest.TestCase):
     def test_invert(self):
         word = np.uint64(0b1010_1100_1111_0000)
 
-        self.assertEqual(simon.invert(word, 16), np.uint64(0b0101_0011_0000_1111))
+        self.assertEqual(simon.invert(word, simon.SIMON_32_64), np.uint64(0b0101_0011_0000_1111))
         self.assertEqual(
-            simon.invert(word, 24), np.uint64(0b1111_1111_0101_0011_0000_1111)
+            simon.invert(word, simon.SIMON_48_72), np.uint64(0b1111_1111_0101_0011_0000_1111)
         )
         self.assertEqual(
-            simon.invert(word, 32), np.uint64(0b1111_1111_1111_1111_0101_0011_0000_1111)
+            simon.invert(word, simon.SIMON_64_96), np.uint64(0b1111_1111_1111_1111_0101_0011_0000_1111)
         )
         self.assertEqual(
-            simon.invert(word, 48),
+            simon.invert(word, simon.SIMON_96_144),
             np.uint64(0b1111_1111_1111_1111_1111_1111_1111_1111_0101_0011_0000_1111),
         )
         self.assertEqual(
-            simon.invert(word, 64),
+            simon.invert(word, simon.SIMON_128_128),
             np.uint64(
                 0b1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_0101_0011_0000_1111
             ),
         )
 
-        for n in [16, 24, 32, 48, 64]:
-            for bits in range(-n + 1, n):
-                rotated = simon.rotate_left(word, bits, n)
-                inverted = simon.rotate_left(rotated, -bits, n)
+        for algo in [simon.SIMON_32_64, simon.SIMON_48_72, simon.SIMON_64_96, simon.SIMON_96_144, simon.SIMON_128_128]:
+            for bits in range(-algo.n + 1, algo.n):
+                rotated = simon.rotate_left(word, bits, algo)
+                inverted = simon.rotate_left(rotated, -bits, algo)
                 self.assertEqual(inverted, word)
 
     def test_clean_input(self):
@@ -64,23 +64,23 @@ class TestSimon(unittest.TestCase):
         input = np.array([word1, word2], dtype=np.uint64)
 
         np.testing.assert_array_equal(
-            simon.clean_input(input, 16),
+            simon.clean_input(input, simon.SIMON_32_64),
             np.array([0x0000_0000_0000_FFFF, 0x0000_0000_0000_DEF0], dtype=np.uint64),
         )
         np.testing.assert_array_equal(
-            simon.clean_input(input, 24),
+            simon.clean_input(input, simon.SIMON_48_72),
             np.array([0x0000_0000_00FF_FFFF, 0x0000_0000_00BC_DEF0], dtype=np.uint64),
         )
         np.testing.assert_array_equal(
-            simon.clean_input(input, 32),
+            simon.clean_input(input, simon.SIMON_64_96),
             np.array([0x0000_0000_FFFF_FFFF, 0x0000_0000_9ABC_DEF0], dtype=np.uint64),
         )
         np.testing.assert_array_equal(
-            simon.clean_input(input, 48),
+            simon.clean_input(input, simon.SIMON_96_96),
             np.array([0x0000_FFFF_FFFF_FFFF, 0x0000_5678_9ABC_DEF0], dtype=np.uint64),
         )
         np.testing.assert_array_equal(
-            simon.clean_input(input, 64),
+            simon.clean_input(input, simon.SIMON_128_128),
             np.array([0xFFFF_FFFF_FFFF_FFFF, 0x1234_5678_9ABC_DEF0], dtype=np.uint64),
         )
 
@@ -97,29 +97,29 @@ class TestSimon(unittest.TestCase):
     def test_rotate(self):
         word = np.uint64(0b0001_0010_0011_0100)
 
-        rotated_left_4 = simon.rotate_left(word, 4, 16)
+        rotated_left_4 = simon.rotate_left(word, 4, simon.SIMON_32_64)
         expected_left_4 = np.uint64(0b0010_0011_0100_0001)
         self.assertEqual(rotated_left_4, expected_left_4)
 
-        rotated_right_4 = simon.rotate_left(word, -4, 16)
+        rotated_right_4 = simon.rotate_left(word, -4, simon.SIMON_32_64)
         expected_right_4 = np.uint64(0b0100_0001_0010_0011)
         self.assertEqual(rotated_right_4, expected_right_4)
 
-        rotated_left_4 = simon.rotate_left(word, 4, 24)
+        rotated_left_4 = simon.rotate_left(word, 4, simon.SIMON_48_72)
         expected_left_4 = np.uint64(0b0000_0001_0010_0011_0100_0000)
         self.assertEqual(rotated_left_4, expected_left_4)
 
-        rotated_right_4 = simon.rotate_left(word, -4, 24)
+        rotated_right_4 = simon.rotate_left(word, -4, simon.SIMON_48_72)
         expected_right_4 = np.uint64(0b0100_0000_0000_0001_0010_0011)
         self.assertEqual(rotated_right_4, expected_right_4)
 
-        rotated_left_4 = simon.rotate_left(word, 4, 64)
+        rotated_left_4 = simon.rotate_left(word, 4, simon.SIMON_128_256)
         expected_left_4 = np.uint64(
             0b0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0010_0011_0100_0000
         )
         self.assertEqual(rotated_left_4, expected_left_4)
 
-        rotated_right_4 = simon.rotate_left(word, -4, 64)
+        rotated_right_4 = simon.rotate_left(word, -4, simon.SIMON_128_256)
         expected_right_4 = np.uint64(
             0b0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0010_0011
         )

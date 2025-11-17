@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-import simon
+import simon_generic.simon as simon
 
 
 class TestSimon(unittest.TestCase):
@@ -33,12 +33,16 @@ class TestSimon(unittest.TestCase):
     def test_invert(self):
         word = np.uint64(0b1010_1100_1111_0000)
 
-        self.assertEqual(simon.invert(word, simon.SIMON_32_64), np.uint64(0b0101_0011_0000_1111))
         self.assertEqual(
-            simon.invert(word, simon.SIMON_48_72), np.uint64(0b1111_1111_0101_0011_0000_1111)
+            simon.invert(word, simon.SIMON_32_64), np.uint64(0b0101_0011_0000_1111)
         )
         self.assertEqual(
-            simon.invert(word, simon.SIMON_64_96), np.uint64(0b1111_1111_1111_1111_0101_0011_0000_1111)
+            simon.invert(word, simon.SIMON_48_72),
+            np.uint64(0b1111_1111_0101_0011_0000_1111),
+        )
+        self.assertEqual(
+            simon.invert(word, simon.SIMON_64_96),
+            np.uint64(0b1111_1111_1111_1111_0101_0011_0000_1111),
         )
         self.assertEqual(
             simon.invert(word, simon.SIMON_96_144),
@@ -51,7 +55,13 @@ class TestSimon(unittest.TestCase):
             ),
         )
 
-        for algo in [simon.SIMON_32_64, simon.SIMON_48_72, simon.SIMON_64_96, simon.SIMON_96_144, simon.SIMON_128_128]:
+        for algo in [
+            simon.SIMON_32_64,
+            simon.SIMON_48_72,
+            simon.SIMON_64_96,
+            simon.SIMON_96_144,
+            simon.SIMON_128_128,
+        ]:
             for bits in range(-algo.n + 1, algo.n):
                 rotated = simon.rotate_left(word, bits, algo)
                 inverted = simon.rotate_left(rotated, -bits, algo)

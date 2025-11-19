@@ -1,50 +1,8 @@
 import numpy as np
 
+import simon_64_128_simulation
 
-class KeyHypothesisIterator:
-    """Iterator to generate new key hypotheses from an existing base key.
-    Example:
-
-    - `Base Key`:
-    ```
-    0x00000000 0x00000000 0x00000000 0x00003DA5
-    ```
-    - `new_byte_idx = 3`
-    - `new_byte_offset = 16`
-
-    In the base key, 2 bytes are guessed already.
-    Now generate new keys where the third byte is guessed.
-
-    New Key Guesses:
-    ```
-    0x00000000 0x00000000 0x00000000 0x00003DA5
-    0x00000000 0x00000000 0x00000000 0x00013DA5
-    ...
-    0x00000000 0x00000000 0x00000000 0x00FF3DA5
-    ```
-    """
-
-    def __init__(self, base_hypothesis: "KeyHypothesis") -> None:
-        self.base_key = base_hypothesis.key
-        self.byte_to_guess = base_hypothesis.num_guessed_bytes
-
-        self.array_idx = 3 - (self.byte_to_guess // 4)
-        self.array_offset = (self.byte_to_guess % 4) * 8
-
-        self.next_byte_val: int = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self) -> "KeyHypothesis":
-        if self.next_byte_val > 0xFF:
-            raise StopIteration
-
-        new_key = self.base_key.copy()
-        new_key[self.array_idx] &= ~np.uint32(0xFF << self.array_offset)
-        new_key[self.array_idx] |= np.uint32(self.next_byte_val << self.array_offset)
-        self.next_byte_val += 1
-        return KeyHypothesis(new_key, self.byte_to_guess + 1)
+from measurement import Measurements, Measurement
 
 
 class KeyHypothesis:
@@ -63,8 +21,20 @@ class KeyHypothesis:
         self.num_guessed_bytes = num_guessed_bytes
         self.corr = corr
 
-    def get_sub_hypos(self) -> KeyHypothesisIterator:
-        return KeyHypothesisIterator(self)
+    def get_mask(self) -> np.uint32:
+        return ~np.uint32(0) >> 32 - (self.num_guessed_bytes * 8)
+
+    def get_sub_hypo(self, byte_val: int) -> "KeyHypothesis":
+        byte_to_guess = self.num_guessed_bytes
+        array_idx = 3 - (byte_to_guess // 4)
+        array_offset = (byte_to_guess % 4) * 8
+        new_key = self.key.copy()
+        new_key[array_idx] &= ~np.uint32(0xFF << array_offset)
+        new_key[array_idx] |= np.uint32(byte_val << array_offset)
+        return KeyHypothesis(new_key, self.num_guessed_bytes + 1)
+
+    def get_sub_hypos(self) -> list["KeyHypothesis"]:
+        return [self.get_sub_hypo(byte_val) for byte_val in range(256)]
 
     def get_round_to_attack(self) -> int:
         return (self.num_guessed_bytes - 1) // 4
@@ -80,3 +50,54 @@ def filter_hypos(
     best_corr = max([abs(h.corr) for h in hypos])
     remaining_hypotheses = [h for h in hypos if abs(h.corr) > best_corr - threshold]
     return remaining_hypotheses
+
+
+def get_corr_for_hypo(hypo: KeyHypothesis, measurements: Measurements) -> np.float64:
+    round_to_attack = hypo.get_round_to_attack()
+    mask = hypo.get_mask()
+
+    for m in measurements.entries:
+        simon_64_128_simulation.get_hw_for_guessed_key_byte(
+            m.plaintext, hypo.key, round_to_attack, mask
+        )
+    # TODO: finish this
+
+
+def find_best_correlation(
+    expected_hws: np.ndarray, consumptions: np.ndarray
+) -> np.float64:
+    # TODO: Fix this
+
+    """Go through all timepoints and find the one with the maximum correlation to hamming weights (positive or negative).
+    Example:
+        - 1000 measurements, each with 45 timepoints
+        - expected_hws: [8, ..., 1] # Shape = 1000
+        - consumptions: [[27, ...,  17],
+                         [30, ...,   2],
+                         ...
+                         [11, ...,  11]] # Shape = (1000, 45)
+                           |    |    |
+                          0.5  ...  0.1  <- Correlations for each timepoint
+        - returns 0.5
+
+    """
+    assert expected_hws.shape[0] == consumptions.shape[0]
+
+    correlations = np.array(
+        [
+            np.corrcoef(expected_hws, consumptions[:, t])[0, 1]
+            for t in range(consumptions.shape[1])
+        ],
+        dtype=np.float64,
+    )
+    if np.max(correlations) > -np.min(correlations):
+        return np.max(correlations)
+    else:
+        return np.min(correlations)
+
+
+def array_to_hex_str(val: np.ndarray) -> str:
+    if val.dtype == np.uint8:
+        return " ".join(f"0x{e:02X}" for e in val)
+    else:
+        return " ".join(f"0x{e:08X}" for e in val)

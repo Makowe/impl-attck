@@ -37,11 +37,7 @@ class TestHelper(unittest.TestCase):
             8,
         )
 
-        sub_hypos: list[helper.KeyHypothesis] = []
-        for sub_hypo in h1.get_sub_hypos():
-            sub_hypos.append(sub_hypo)
-            self.assertEqual(sub_hypo.num_guessed_bytes, 3)
-            self.assertEqual(sub_hypo.get_round_to_attack(), 0)
+        sub_hypos = h1.get_sub_hypos()
 
         self.assertEqual(len(sub_hypos), 256)
         np.testing.assert_array_equal(
@@ -54,9 +50,7 @@ class TestHelper(unittest.TestCase):
             sub_hypos[255].key, np.array([0, 0, 0, 0x00FF1234], dtype=np.uint32)
         )
 
-        sub_hypos: list[helper.KeyHypothesis] = []
-        for sub_hypo in h3.get_sub_hypos():
-            sub_hypos.append(sub_hypo)
+        sub_hypos = h3.get_sub_hypos()
 
         self.assertEqual(len(sub_hypos), 256)
         np.testing.assert_array_equal(

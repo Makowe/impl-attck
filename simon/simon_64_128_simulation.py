@@ -1,15 +1,17 @@
 import numpy as np
-import logger
 
+import logger
 import simon_64_128
 
 
-def log_to_measurement(log: logger.Log) -> np.ndarray:
+def log_to_simulated_power(log: logger.Log) -> np.ndarray:
     x_values = _get_x_values_from_log(log)
     return np.bitwise_count(x_values)
 
 
-def get_hw_for_guessed_key_byte(plaintext: np.ndarray, guessed_key: np.ndarray, round: int, mask: int) -> int:
+def get_hw_for_guessed_key_byte(
+    plaintext: np.ndarray, guessed_key: np.ndarray, round: int, mask: np.uint32
+) -> int:
     x_i = _get_x_for_guessed_key(plaintext, guessed_key, round)
     return (x_i & mask).bit_count()
 
@@ -49,6 +51,7 @@ def encrypt_block_light(plaintext: np.ndarray, key: np.ndarray) -> np.ndarray:
 
 # PRIVATE
 
+
 def _get_x_values_from_log(log: logger.Log) -> np.ndarray:
     x_values = []
     for e in log.entries:
@@ -57,6 +60,8 @@ def _get_x_values_from_log(log: logger.Log) -> np.ndarray:
     return np.array(x_values, dtype=np.uint32)
 
 
-def _get_x_for_guessed_key(plaintext: np.ndarray, guessed_key: np.ndarray, round: int) -> np.integer:
+def _get_x_for_guessed_key(
+    plaintext: np.ndarray, guessed_key: np.ndarray, round: int
+) -> np.integer:
     x_values = encrypt_block_light(plaintext, guessed_key)
     return x_values[round]

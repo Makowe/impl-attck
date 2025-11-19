@@ -14,5 +14,5 @@ ciphertext2, log2 = simon_64_128.encrypt_block(plaintext2, key)
 
 print(log2.to_str())
 
-log3 = log1.xor(log2)
-print(log3.to_str("b"))
+# log3 = log1.xor(log2)
+# print(log3.to_str("b"))

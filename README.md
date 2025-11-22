@@ -11,6 +11,32 @@ Start a terminal inside the folder where you want your repository. Run:
 git clone https://github.com/Makowe/impl-attck --recurse-submodules
 ```
 
+# Repo Content
+
+### chipwhisperer
+Reference Code and Notebooks
+
+The content of this folder comes from this [repository](https://github.com/Makowe/chipwhisperer).
+Is included as a git submodule.
+
+### chipwhisperer-traces 
+Sample Measurements required for performing reference attacks in `chipwhisperer`.
+
+The content of this folder comes from this [repository](https://github.com/newaetech/chipwhisperer-traces).
+It is included as a git submodule.
+
+### simon
+Implementation of Simon Algorithm and Attack
+
+### literature
+
+Literature for the Latex Paper
+
+### paper
+
+Latex Paper
+
+
 # Run sample Jupyter Notebook
 
 Start a terminal inside the impl-attck folder. Run:
@@ -34,9 +60,9 @@ pip install -r requirements.txt
 jupyter notebook
 ```
 
-# Run the Simon Python Code
+# Run the Simon Code
 
-Start a terminal inside the impl-attck folder. Run:
+Setup another conda environment. Start a terminal inside the impl-attck folder. Run:
 
 ```
 # Create a new conda environment
@@ -48,9 +74,21 @@ conda activate simon
 # Go to the folder with the simon python code
 cd simon
 
-# Install numpy inside your environment.
-pip install numpy
+# Install required libraries via pip.
+pip install -r requirements.txt
+```
 
-# Start the Jupyter Notebook. This will open a browser window
+## Run the example.py scipt
+```
 python -m example
+```
+
+## Run the Unittests
+```
+python -m unittest
+```
+
+## Start the Jupyter Notebook for running the simulated attack
+```
+jupyter notebook
 ```

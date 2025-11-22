@@ -1,13 +1,13 @@
 import numpy as np
 
-import simon_64_128_simulation
+from simon_64_128_simulation import get_hw_for_guessed_key_byte
 
 from measurement import Measurements, Measurement
 
 
 class KeyHypothesis:
     """Wrapper for a guessed key and the correlation to the measurement.
-    The argument `attack_step` tells in which attack round the Hypothesis was made.
+    The argument `num_guessed_bytes` tells how many bytes in the Hypothesis are guessed.
     This is required for deriving sub-keys.
     """
 
@@ -22,9 +22,30 @@ class KeyHypothesis:
         self.corr = corr
 
     def get_mask(self) -> np.uint32:
-        return ~np.uint32(0) >> 32 - (self.num_guessed_bytes * 8)
+        """Create a bitmask for the current round key where all guessed bits are set to 1.
+
+        Example:
+        ```
+            KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0000A4F3], 2).get_mask() -> 0x0000FFFF
+            KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x263AD743], 4).get_mask() -> 0xFFFFFFFF
+            KeyHypothesis([0x00000000, 0x00000000, 0x00343DF4, 0x3456DE76], 7).get_mask() -> 0x00FFFFFF
+        ```
+        """
+        if self.num_guessed_bytes % 4 == 0:
+            guessed_bytes_in_word = 4
+        else:
+            guessed_bytes_in_word = self.num_guessed_bytes % 4
+        return ~np.uint32(0) >> 32 - (guessed_bytes_in_word * 8)
 
     def get_sub_hypo(self, byte_val: int) -> "KeyHypothesis":
+        """Get a sub hypothesis for the current hypothesis with 1 additionally guessed byte
+
+        Example:
+        ```
+        KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0000A4F3], 2).get_sub_hypo(0x27) ->
+        KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0027A4F3], 3)
+        ```
+        """
         byte_to_guess = self.num_guessed_bytes
         array_idx = 3 - (byte_to_guess // 4)
         array_offset = (byte_to_guess % 4) * 8
@@ -34,15 +55,31 @@ class KeyHypothesis:
         return KeyHypothesis(new_key, self.num_guessed_bytes + 1)
 
     def get_sub_hypos(self) -> list["KeyHypothesis"]:
+        """Get a list of all 256 sub hypothesis for the current hypothesis with 1 additionally guessed byte
+
+        Example:
+        ```
+        KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0000A4F3], 2).get_sub_hypos() ->
+        [ KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0000A4F3], 3)
+          KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0001A4F3], 3)
+          ...
+          KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x00FFA4F3], 3) ]
+        ```
+        """
+
         return [self.get_sub_hypo(byte_val) for byte_val in range(256)]
 
     def get_round_to_attack(self) -> int:
+        """Create a bitmask for the current round key where all guessed bits are set to 1.
+        Example:
+            KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0000A4F3], 2).get_round_to_attack() -> 0
+            KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x263AD743], 4).get_round_to_attack() -> 0
+            KeyHypothesis([0x00000000, 0x00000000, 0x00343DF4, 0x3456DE76], 7).get_round_to_attack() -> 1
+        """
         return (self.num_guessed_bytes - 1) // 4
 
 
-def filter_hypos(
-    hypos: list[KeyHypothesis], threshold: np.float64
-) -> list[KeyHypothesis]:
+def filter_hypos(hypos: list[KeyHypothesis], threshold: float) -> list[KeyHypothesis]:
     """Goes through a list of key hypotheses and creates a new list where all declined
     hypotheses are removed.
     """
@@ -52,48 +89,26 @@ def filter_hypos(
     return remaining_hypotheses
 
 
-def get_corr_for_hypo(hypo: KeyHypothesis, measurements: Measurements) -> np.float64:
+def calc_corr_for_hypo(hypo: KeyHypothesis, measurements: Measurements):
     round_to_attack = hypo.get_round_to_attack()
     mask = hypo.get_mask()
 
-    for m in measurements.entries:
-        simon_64_128_simulation.get_hw_for_guessed_key_byte(
-            m.plaintext, hypo.key, round_to_attack, mask
-        )
-    # TODO: finish this
-
-
-def find_best_correlation(
-    expected_hws: np.ndarray, consumptions: np.ndarray
-) -> np.float64:
-    # TODO: Fix this
-
-    """Go through all timepoints and find the one with the maximum correlation to hamming weights (positive or negative).
-    Example:
-        - 1000 measurements, each with 45 timepoints
-        - expected_hws: [8, ..., 1] # Shape = 1000
-        - consumptions: [[27, ...,  17],
-                         [30, ...,   2],
-                         ...
-                         [11, ...,  11]] # Shape = (1000, 45)
-                           |    |    |
-                          0.5  ...  0.1  <- Correlations for each timepoint
-        - returns 0.5
-
-    """
-    assert expected_hws.shape[0] == consumptions.shape[0]
+    expected_hws = [
+        get_hw_for_guessed_key_byte(m.plaintext, hypo.key, round_to_attack, mask)
+        for m in measurements.entries
+    ]
 
     correlations = np.array(
         [
-            np.corrcoef(expected_hws, consumptions[:, t])[0, 1]
-            for t in range(consumptions.shape[1])
+            np.corrcoef(expected_hws, measurements.power_2d[:, t])[0, 1]
+            for t in range(measurements.power_2d.shape[1])
         ],
         dtype=np.float64,
     )
     if np.max(correlations) > -np.min(correlations):
-        return np.max(correlations)
+        hypo.corr = np.max(correlations)
     else:
-        return np.min(correlations)
+        hypo.corr = np.min(correlations)
 
 
 def array_to_hex_str(val: np.ndarray) -> str:

@@ -50,39 +50,6 @@ def encrypt_block(
     return res, log
 
 
-def encrypt_block_light(plaintext: np.ndarray, key: np.ndarray) -> np.ndarray:
-    """Perform only the first 4 rounds of the encryption.
-    This is useful for side-channel simulations where only the states of the first 4 rounds are required.
-    Instead of the ciphertext, return the four states x[1..4] for analysis.
-    """
-    assert plaintext.dtype == np.uint32
-    assert key.dtype == np.uint32
-    assert plaintext.shape == (2,)
-    assert key.shape == (M,)
-
-    res = np.array([0, 0, 0, 0], dtype=np.uint32)
-
-    # Prepare buffers
-    round_keys = np.array([key[3], key[2], key[1], key[0]], dtype=np.uint32)
-
-    x = plaintext[0]
-    y = plaintext[1]
-
-    # Perform the rounds.
-    for i in range(M):
-        tmp = x
-        x = (
-            y
-            ^ (rotate_left(x, 1) & rotate_left(x, 8))
-            ^ rotate_left(x, 2)
-            ^ round_keys[i]
-        )
-        y = tmp
-        res[i] = x
-
-    return res
-
-
 def expand_key(key: np.ndarray) -> np.ndarray:
 
     # Result array will have m keys, each m*n bits long.

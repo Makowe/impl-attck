@@ -16,6 +16,8 @@ class Measurement:
 class Measurements:
     def __init__(self):
         self.entries: list["Measurement"] = []
+        self.plaintexts = np.array([], dtype=np.uint32)
+        self.ciphertexts = np.array([], dtype=np.uint32)
         self.power_2d = np.array([], dtype=np.uint32)
 
     def __getitem__(self, i) -> "Measurement":
@@ -24,5 +26,7 @@ class Measurements:
     def append(self, entry: "Measurement"):
         self.entries.append(entry)
 
-    def update_power_2d(self):
+    def update_arrays(self):
         self.power_2d = np.array([m.power for m in self.entries], dtype=np.uint32)
+        self.plaintexts = np.array([m.plaintext for m in self.entries], dtype=np.uint32)
+        self.ciphertexts = np.array([m.ciphertext for m in self.entries], dtype=np.uint32)

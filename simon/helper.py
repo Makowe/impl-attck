@@ -1,6 +1,6 @@
 import numpy as np
 
-from simon_64_128_simulation import get_hw_for_guessed_key_byte
+import simon_64_128_simulation
 
 from measurement import Measurements, Measurement
 
@@ -93,26 +93,36 @@ def calc_corr_for_hypo(hypo: KeyHypothesis, measurements: Measurements):
     round_to_attack = hypo.get_round_to_attack()
     mask = hypo.get_mask()
 
-    expected_hws = [
-        get_hw_for_guessed_key_byte(m.plaintext, hypo.key, round_to_attack, mask)
-        for m in measurements.entries
-    ]
-
-    correlations = np.array(
-        [
-            np.corrcoef(expected_hws, measurements.power_2d[:, t])[0, 1]
-            for t in range(measurements.power_2d.shape[1])
-        ],
-        dtype=np.float64,
+    expected_hws = simon_64_128_simulation.get_hws_for_guessed_key_byte(
+        measurements.plaintexts, hypo.key, round_to_attack, mask
     )
-    if np.max(correlations) > -np.min(correlations):
-        hypo.corr = np.max(correlations)
-    else:
-        hypo.corr = np.min(correlations)
 
+    corrs = calc_corrs(expected_hws, measurements.power_2d)
+    if np.max(corrs) > -np.min(corrs):
+        hypo.corr = np.max(corrs)
+    else:
+        hypo.corr = np.min(corrs)
 
 def array_to_hex_str(val: np.ndarray) -> str:
     if val.dtype == np.uint8:
         return " ".join(f"0x{e:02X}" for e in val)
     else:
         return " ".join(f"0x{e:08X}" for e in val)
+
+
+def calc_corrs(hws: np.ndarray, power: np.ndarray) -> np.ndarray:
+    """Calculate the correlations between expected hamming weights and the power measurements
+    at each time step.
+
+    Example:
+        hws.shape = (50000,) # 50,000 measurements
+        power.shape = (50000, 1000) # 50,000 measurements with 1,000 time steps each
+        corrs(hws, power).shape -> (1000,) # 1,000 correlation values, one for each time step
+    """
+
+    hws_c = hws - hws.mean()
+    power_c = power - power.mean(axis=0)
+    num = hws_c @ power_c
+    den = np.sqrt((hws_c @ hws_c) * (power_c * power_c).sum(axis=0))
+    corr = num / den
+    return corr

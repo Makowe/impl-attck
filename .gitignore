@@ -3,3 +3,4 @@ __pycache__/
 *.cwp
 *.npy
 *.cfg
+simon/traces/*

@@ -1,54 +1,52 @@
 import numpy as np
 
 import logger
-import simon_64_128
 
 
 def log_to_simulated_power(log: logger.Log) -> np.ndarray:
     x_values = _get_x_values_from_log(log)
-    return np.bitwise_count(x_values)
+    return bits_count(x_values)
 
 
-def get_hws_for_guessed_key_byte(
-    plaintexts: np.ndarray, guessed_key: np.ndarray, round: int, mask: np.uint32
-) -> int:
-    
-    xs = np.apply_along_axis(
-        get_x_after_round, 1, plaintexts, guessed_key, round
-    )
+def get_hws_for_guessed_keys(
+    plaintexts: np.ndarray, keys: np.ndarray, round: int, mask: np.uint32
+) -> np.ndarray:
+
+    xs = get_xs_after_round(plaintexts, keys, round)
     return bits_count(xs & mask).astype(np.uint32)
 
 
 bits_count = np.frompyfunc(int.bit_count, 1, 1)
 
-def get_x_after_round(plaintext: np.ndarray, key: np.ndarray, round: int) -> np.ndarray:
-    """Perform only the first 4 rounds of the encryption.
-    This is useful for side-channel simulations where only the states of the first 4 rounds are required.
-    Instead of the ciphertext, return the four states x[1..4] for analysis.
+
+def get_xs_after_round(
+    plaintexts: np.ndarray, keys: np.ndarray, round: int
+) -> np.ndarray:
+    """Perform the specified number of rounds on multiple plaintexts and multiple keys
+    and return the intermediate x state for each combination of plaintext and key.
     """
-    assert plaintext.dtype == np.uint32
-    assert key.dtype == np.uint32
-    assert plaintext.shape == (2,)
-    assert key.shape == (simon_64_128.M,)
-
     # Prepare buffers
-    round_keys = np.array([key[3], key[2], key[1], key[0]], dtype=np.uint32)
+    round_keys = np.zeros_like(keys)
+    round_keys[:, 0] = keys[:, 3]
+    round_keys[:, 1] = keys[:, 2]
+    round_keys[:, 2] = keys[:, 1]
+    round_keys[:, 3] = keys[:, 0]
 
-    x = plaintext[0:1]
-    y = plaintext[1:2]
+    x = np.repeat(plaintexts[:, 0:1], keys.shape[0], axis=1)
+    y = np.repeat(plaintexts[:, 1:2], keys.shape[0], axis=1)
 
     # Perform the rounds.
-    for i in range(round+1):
-        tmp = x
+    for i in range(round + 1):
+        tmp = x.copy()
         x = (
             y
-            ^ (simon_64_128.rotate_left(x, 1) & simon_64_128.rotate_left(x, 8))
-            ^ simon_64_128.rotate_left(x, 2)
-            ^ round_keys[i:i+1]
+            ^ (((x << 1) | (x >> 31)) & ((x << 8) | (x >> 24)))
+            ^ ((x << 2) | (x >> 30))
+            ^ round_keys[:, i]
         )
         y = tmp
 
-    return x[0]
+    return x
 
 
 # PRIVATE

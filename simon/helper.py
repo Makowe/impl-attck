@@ -89,19 +89,23 @@ def filter_hypos(hypos: list[KeyHypothesis], threshold: float) -> list[KeyHypoth
     return remaining_hypotheses
 
 
-def calc_corr_for_hypo(hypo: KeyHypothesis, measurements: Measurements):
-    round_to_attack = hypo.get_round_to_attack()
-    mask = hypo.get_mask()
+def calc_corrs_for_hypos(hypos: list[KeyHypothesis], measurements: Measurements):
+    round_to_attack = hypos[0].get_round_to_attack()
+    mask = hypos[0].get_mask()
 
-    expected_hws = simon_64_128_simulation.get_hws_for_guessed_key_byte(
-        measurements.plaintexts, hypo.key, round_to_attack, mask
+    keys = np.array([hypo.key for hypo in hypos], dtype=np.uint32)
+
+    expected_hws = simon_64_128_simulation.get_hws_for_guessed_keys(
+        measurements.plaintexts, keys, round_to_attack, mask
     )
 
     corrs = calc_corrs(expected_hws, measurements.power_2d)
-    if np.max(corrs) > -np.min(corrs):
-        hypo.corr = np.max(corrs)
-    else:
-        hypo.corr = np.min(corrs)
+    for hypo, corr in zip(hypos, corrs):
+        if np.max(corr) > -np.min(corr):
+            hypo.corr = np.max(corr)
+        else:
+            hypo.corr = np.min(corr)
+
 
 def array_to_hex_str(val: np.ndarray) -> str:
     if val.dtype == np.uint8:
@@ -115,14 +119,15 @@ def calc_corrs(hws: np.ndarray, power: np.ndarray) -> np.ndarray:
     at each time step.
 
     Example:
-        hws.shape = (50000,) # 50,000 measurements
+        hws.shape = (50000,256) # 50,000 measurements with 256 guessed keys each
         power.shape = (50000, 1000) # 50,000 measurements with 1,000 time steps each
-        corrs(hws, power).shape -> (1000,) # 1,000 correlation values, one for each time step
+        corrs(hws, power).shape -> (256,1000) # for each of the 256 guessed keys, correlation values over 1,000 time steps.
     """
-
     hws_c = hws - hws.mean()
     power_c = power - power.mean(axis=0)
-    num = hws_c @ power_c
-    den = np.sqrt((hws_c @ hws_c) * (power_c * power_c).sum(axis=0))
-    corr = num / den
-    return corr
+
+    hws_norm = hws_c / hws_c.std(axis=0)
+    power_norm = power_c / power_c.std(axis=0)
+
+    corrs = hws_norm.T @ power_norm / (hws.shape[0] - 1)
+    return corrs

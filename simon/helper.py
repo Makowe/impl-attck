@@ -2,7 +2,7 @@ import numpy as np
 
 import simon_64_128_simulation
 
-from measurement import Measurements, Measurement
+from measurement import Measurements
 
 
 class KeyHypothesis:
@@ -35,7 +35,7 @@ class KeyHypothesis:
             guessed_bytes_in_word = 4
         else:
             guessed_bytes_in_word = self.num_guessed_bytes % 4
-        return ~np.uint32(0) >> 32 - (guessed_bytes_in_word * 8)
+        return ~np.uint32(0) >> (32 - (guessed_bytes_in_word * 8))
 
     def get_sub_hypo(self, byte_val: int) -> "KeyHypothesis":
         """Get a sub hypothesis for the current hypothesis with 1 additionally guessed byte
@@ -96,10 +96,10 @@ def calc_corrs_for_hypos(hypos: list[KeyHypothesis], measurements: Measurements)
     keys = np.array([hypo.key for hypo in hypos], dtype=np.uint32)
 
     expected_hws = simon_64_128_simulation.get_hws_for_guessed_keys(
-        measurements.plaintexts, keys, round_to_attack, mask
+        measurements.plaintext, keys, round_to_attack, mask
     )
 
-    corrs = calc_corrs(expected_hws, measurements.power_2d)
+    corrs = calc_corrs(expected_hws, measurements.power)
     for hypo, corr in zip(hypos, corrs):
         if np.max(corr) > -np.min(corr):
             hypo.corr = np.max(corr)
@@ -119,10 +119,12 @@ def calc_corrs(hws: np.ndarray, power: np.ndarray) -> np.ndarray:
     at each time step.
 
     Example:
-        hws.shape = (50000,256) # 50,000 measurements with 256 guessed keys each
-        power.shape = (50000, 1000) # 50,000 measurements with 1,000 time steps each
-        corrs(hws, power).shape -> (256,1000) # for each of the 256 guessed keys, correlation values over 1,000 time steps.
+        hws.shape = (10000, 256) # 50,000 measurements with 256 guessed keys each
+        power.shape = (10000, 5000) # 50,000 measurements with 5,000 time steps each
+        corrs(hws, power).shape -> (256, 5000) # for each of the 256 guessed keys, correlation values over 5,000 time steps.
     """
+    assert hws.shape[0] == power.shape[0]
+
     hws_c = hws - hws.mean()
     power_c = power - power.mean(axis=0)
 

@@ -1,24 +1,24 @@
 import numpy as np
 
 
-def calc_corrs(hws: np.ndarray, power: np.ndarray) -> np.ndarray:
+def calc_corrs(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """Calculate the correlations between expected hamming weights and the power measurements
     at each time step.
 
     Example:
-        hws.shape = (10000, 256) # 10,000 measurements with 256 guessed keys each
-        power.shape = (10000, 5000) # 10,000 measurements with 5,000 time steps each
+        x.shape = (10000, 256) # 10,000 measurements with 256 guessed keys each
+        y.shape = (10000, 5000) # 10,000 measurements with 5,000 time steps each
         corrs(hws, power).shape -> (256, 5000) # for each of the 256 guessed keys, correlation values over 5,000 time steps.
     """
-    assert hws.shape[0] == power.shape[0]
+    assert x.shape[0] == y.shape[0]
 
-    hws_c = hws - hws.mean()
-    power_c = power - power.mean(axis=0)
+    xc = x - x.mean()
+    yc = y - y.mean(axis=0)
 
-    hws_norm = hws_c / hws_c.std(axis=0)
-    power_norm = power_c / power_c.std(axis=0)
+    xn = xc / xc.std(axis=0)
+    yn = yc / yc.std(axis=0)
 
-    corrs = hws_norm.T @ power_norm / (hws.shape[0] - 1)
+    corrs = xn.T @ yn / (x.shape[0] - 1)
     return corrs
 
 
@@ -32,10 +32,12 @@ class Corr:
         """
         self.n = 0
         self.shape = shape
-        self.mx = np.zeros((shape[0],), dtype=np.float64)
-        self.my = np.zeros((shape[1],), dtype=np.float64)
-        self.mxx = np.zeros((shape[0],), dtype=np.float64)
-        self.myy = np.zeros((shape[1],), dtype=np.float64)
+        self.mx = np.zeros(shape[0], dtype=np.float64)
+        self.mxx = np.zeros(shape[0], dtype=np.float64)
+
+        self.my = np.zeros(shape[1], dtype=np.float64)
+        self.myy = np.zeros(shape[1], dtype=np.float64)
+
         self.mxy = np.zeros(shape, dtype=np.float64)
 
     def update(self, x_new: np.ndarray, y_new: np.ndarray):
@@ -65,7 +67,9 @@ class Corr:
         self.myy += np.sum(dy * dy2, axis=0)
         self.mxy += dx.T @ dy2
 
-        # continue here
-        self.sum_hws_sq += (hws ** 2).sum(axis=0)
-        self.sum_power_sq += (power ** 2).sum(axis=0)
-        self.sum_mult += (hws[:, :, None] * power[:, None, :]).sum(axis=0)
+
+    def c(self) -> np.ndarray:
+        num = self.mxy
+        den = (self.mxx.reshape((self.shape[0], 1)) @ self.myy.reshape((1, self.shape[1]))) ** 0.5
+        return num / den
+    

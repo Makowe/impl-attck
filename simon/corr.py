@@ -32,6 +32,7 @@ class Corr:
         """
         self.n = 0
         self.shape = shape
+        
         self.mx = np.zeros(shape[0], dtype=np.float64)
         self.mxx = np.zeros(shape[0], dtype=np.float64)
 

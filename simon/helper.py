@@ -2,6 +2,7 @@ import numpy as np
 
 import simon_64_128_simulation
 
+import corr
 from measurement import Measurements
 
 
@@ -99,7 +100,7 @@ def calc_corrs_for_hypos(hypos: list[KeyHypothesis], measurements: Measurements)
         measurements.plaintext, keys, round_to_attack, mask
     )
 
-    corrs = calc_corrs(expected_hws, measurements.power)
+    corrs = corr.calc_corrs(expected_hws, measurements.power)
     for hypo, corr in zip(hypos, corrs):
         if np.max(corr) > -np.min(corr):
             hypo.corr = np.max(corr)
@@ -113,23 +114,3 @@ def array_to_hex_str(val: np.ndarray) -> str:
     else:
         return " ".join(f"0x{e:08X}" for e in val)
 
-
-def calc_corrs(hws: np.ndarray, power: np.ndarray) -> np.ndarray:
-    """Calculate the correlations between expected hamming weights and the power measurements
-    at each time step.
-
-    Example:
-        hws.shape = (10000, 256) # 50,000 measurements with 256 guessed keys each
-        power.shape = (10000, 5000) # 50,000 measurements with 5,000 time steps each
-        corrs(hws, power).shape -> (256, 5000) # for each of the 256 guessed keys, correlation values over 5,000 time steps.
-    """
-    assert hws.shape[0] == power.shape[0]
-
-    hws_c = hws - hws.mean()
-    power_c = power - power.mean(axis=0)
-
-    hws_norm = hws_c / hws_c.std(axis=0)
-    power_norm = power_c / power_c.std(axis=0)
-
-    corrs = hws_norm.T @ power_norm / (hws.shape[0] - 1)
-    return corrs

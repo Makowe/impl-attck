@@ -1,14 +1,14 @@
 import numpy as np
 
 
-def calc_corrs(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+def calc_corrs_direct(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """Calculate the correlations between expected hamming weights and the power measurements
-    at each time step.
+    at each time step. This implementation is fast for small samples.
 
     Example:
-        x.shape = (10000, 256) # 10,000 measurements with 256 guessed keys each
-        y.shape = (10000, 5000) # 10,000 measurements with 5,000 time steps each
-        corrs(hws, power).shape -> (256, 5000) # for each of the 256 guessed keys, correlation values over 5,000 time steps.
+        - x.shape = (10000, 256) # 10,000 measurements with 256 guessed keys each
+        - y.shape = (10000, 5000) # 10,000 measurements with 5,000 time steps each
+        - corrs(hws, power).shape -> (256, 5000) # for each of the 256 guessed keys, correlation values over 5,000 time steps.
     """
     assert x.shape[0] == y.shape[0]
 
@@ -22,6 +22,28 @@ def calc_corrs(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return corrs
 
 
+def calc_corrs(x: np.ndarray, y: np.ndarray, step_size=10) -> np.ndarray:
+    """Calculate the correlations between expected hamming weights and the power measurements
+    at each time step. This implementation is optimized for big samples.
+
+    Example:
+        - x.shape = (10000, 256) # 10,000 measurements with 256 guessed keys each
+        - y.shape = (10000, 5000) # 10,000 measurements with 5,000 time steps each
+        - corrs(hws, power).shape -> (256, 5000) # for each of the 256 guessed keys, correlation values over 5,000 time steps.
+
+    Arguments:
+        step_size: Number of samples that are processed in 1 step.
+    """
+    assert x.shape[0] == y.shape[0]
+
+    corrs = Corr((x.shape[1], y.shape[1]))
+
+    for i in range(0, x.shape[0], step_size):
+        corrs.update(x[i : i + step_size, :], y[i : i + step_size])
+
+    return corrs.c()
+
+
 class Corr:
     def __init__(self, shape: tuple):
         """Create a correlation calculator for data with the specified shape.
@@ -32,7 +54,7 @@ class Corr:
         """
         self.n = 0
         self.shape = shape
-        
+
         self.mx = np.zeros(shape[0], dtype=np.float64)
         self.mxx = np.zeros(shape[0], dtype=np.float64)
 
@@ -42,7 +64,7 @@ class Corr:
         self.mxy = np.zeros(shape, dtype=np.float64)
 
     def update(self, x_new: np.ndarray, y_new: np.ndarray):
-        """ Add a bunch of measurements to the correlation calculation.
+        """Add a bunch of measurements to the correlation calculation.
         Example:
             x_new.shape = (100, 256)
             y_new.shape = (100, 5000)
@@ -56,7 +78,7 @@ class Corr:
         self.n += x_new.shape[0]
 
         dx = x_new - self.mx
-        dy = y_new - self.mx
+        dy = y_new - self.my
 
         self.mx += dx.sum(axis=0) / self.n
         self.my += dy.sum(axis=0) / self.n
@@ -68,9 +90,24 @@ class Corr:
         self.myy += np.sum(dy * dy2, axis=0)
         self.mxy += dx.T @ dy2
 
-
     def c(self) -> np.ndarray:
         num = self.mxy
-        den = (self.mxx.reshape((self.shape[0], 1)) @ self.myy.reshape((1, self.shape[1]))) ** 0.5
+        den = (
+            self.mxx.reshape((self.shape[0], 1)) @ self.myy.reshape((1, self.shape[1]))
+        ) ** 0.5
         return num / den
-    
+
+    def max(self, axis=1) -> np.ndarray:
+        corrs = self.c()
+
+        if axis is None:
+            return abs_max(corrs)
+        else:
+            return np.apply_along_axis(abs_max, axis, corrs)
+
+
+def abs_max(arr: np.ndarray):
+    if arr.ndim > 0:
+        arr = arr.flatten()
+
+    return arr[np.argmax(np.abs(arr))]

@@ -2,7 +2,7 @@ import numpy as np
 
 import simon_64_128_simulation
 
-import corr
+import correlations
 from measurement import Measurements
 
 
@@ -100,7 +100,7 @@ def calc_corrs_for_hypos(hypos: list[KeyHypothesis], measurements: Measurements)
         measurements.plaintext, keys, round_to_attack, mask
     )
 
-    corrs = corr.calc_corrs(expected_hws, measurements.power)
+    corrs = correlations.calc_corrs(expected_hws, measurements.power)
     for hypo, corr in zip(hypos, corrs):
         if np.max(corr) > -np.min(corr):
             hypo.corr = np.max(corr)
@@ -113,4 +113,3 @@ def array_to_hex_str(val: np.ndarray) -> str:
         return " ".join(f"0x{e:02X}" for e in val)
     else:
         return " ".join(f"0x{e:08X}" for e in val)
-

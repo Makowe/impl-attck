@@ -1,0 +1,160 @@
+%%%% IACR Transactions TEMPLATE %%%%
+% This file shows how to use the iacrtrans class to write a paper.
+% Written by Gaetan Leurent gaetan.leurent@inria.fr (2020)
+% Public Domain (CC0)
+
+
+%%%% 1. DOCUMENTCLASS %%%%
+\documentclass[journal=tosc,final]{iacrtrans}
+%%%% NOTES:
+% - Change "journal=tosc" to "journal=tches" if needed
+% - Change "submission" to "final" for final version
+% - Add "spthm" for LNCS-like theorems
+
+
+%%%% 2. PACKAGES %%%%
+\usepackage{lipsum} % Example package -- can be removed
+\usepackage{tikz}
+
+%%%% 3. AUTHOR, INSTITUTE %%%%
+\author{Jane Doe\inst{1,2} \and John Doe\inst{1}}
+\institute{
+  Institute A, City, Country, \email{jane@institute}
+  \and
+  Institute B, City, Country, \email{john@institute}
+}
+%%%% NOTES:
+% - We need a city name for indexation purpose, even if it is redundant
+%   (eg: University of Atlantis, Atlantis, Atlantis)
+% - \inst{} can be omitted if there is a single institute,
+%   or exactly one institute per author
+
+
+%%%% 4. TITLE %%%%
+\title{My New Paper}
+%%%% NOTES:
+% - If the title is too long, or includes special macro, please
+%   provide a "running title" as optional argument: \title[Short]{Long}
+% - You can provide an optional subtitle with \subtitle.
+
+\begin{document}
+
+\maketitle
+
+
+%%%% 5. KEYWORDS %%%%
+\keywords{Something \and Something else}
+
+
+%%%% 6. ABSTRACT %%%%
+\begin{abstract}
+  In this paper we prove that the One-Time-Pad has perfect security.
+
+\end{abstract}
+
+
+%%%% 7. PAPER CONTENT %%%%
+\section{Introduction}
+
+\include{diagramSimonRound.tex}
+
+\include{diagramSimonInter.tex}
+
+A CPA was performed on the first 4 rounds of Simon-64/128. Each round brings in a 32-bit round key. The round keys $k_0, k_1, k_2$ and $k_3$ form the complete 128-bit key. 
+For each round, the attack was split into 4 parts to extract the key bytewise.
+Guessing 8 bits at once reduces the probability of wrongly guessed bits while the attack remains efficient.
+
+The Hamming weight model was used for the power analysis. For each attacked round $i$, the internal state $x_{i+1}$ was chosen as an attack point.
+$x_{i+1}$ depends on the 3 words $x_i$, $y_i$ and $k_i$ (see Figure xxx).
+
+The round key $k_i$ is brought in with an XOR-operation. This makes it easy to split the attack into smaller parts because every bit of $k_i$ only influences 1 bit of $x_{i+1}$.
+
+\subsubsection{Attack Steps}
+The CPA attack was executed according to the following procedure:
+\begin{enumerate}
+	\item Collect $n$ power traces of length $m$. The whole measurement is a tuple $(T, P, C)$.
+	
+	$T$ is a Matrix of size $(n,m)$ which contains all traces $t_i$. $P$ contain the plaintexts $p_i$ and $C$ contains the ciphertexts $c_i$.
+	$$T = 
+	\begin{pmatrix}
+		t_1 \\
+		\vdots\\
+		t_n
+	\end{pmatrix}
+	=
+	\begin{pmatrix}
+		t_{1,1}& \cdots& t_{1,m} \\
+		\vdots & & \vdots \\
+		t_{n,1}& \cdots& t_{n,m} \\
+	\end{pmatrix}	
+	\quad P = 	\begin{pmatrix}
+		p_1 \\
+		\vdots\\
+		p_n
+	\end{pmatrix}
+	\quad C = 	\begin{pmatrix}
+		c_1 \\
+		\vdots\\
+		c_n
+	\end{pmatrix}
+	$$
+
+	\item Create key candidates $K^*$ and a bitmask $B$. In the first iteration of the attack, the values are defined like this:
+	$$K^*=(k^*_0, ..., k^*_{255})=(0,...,255) \quad B = 255$$
+	In later iterations, create key candidates based on key candidates that were marked as promising before. Adjust $B$ to mask all bits of the key which are guessed.
+	
+	\item For each combination of a key candidate and a plaintext, calculate the attacked intermediate state $x$. Apply the mask $B$ on $x$ by using a bitwise And-operation. Calculate the hamming weight $hw$ of the masked value. The resulting matrix $HW$ has the size $(n,256)$.
+	$$
+	HW =
+	\begin{pmatrix}
+		hw_{1,0}& \cdots& hw_{1,255} \\
+		\vdots & & \vdots \\
+		t_{n,0}& \cdots& t_{n,255} \\
+	\end{pmatrix}
+	$$
+	
+	\item Calculate the Pearson Correlation coefficient between every column of $T$ and every column of $HW$. The results is a matrix $\rho$ with size $(256, m)$. Compute $\hat{\rho}$ by selecting the the element with the largest absolute value in each row.
+	$$
+	\rho = 
+	\begin{pmatrix}
+		\rho_{0,1}& \cdots& \rho_{0,m} \\
+		\vdots & & \vdots \\
+		\rho_{255,1}& \cdots& \rho_{255,m} \\
+	\end{pmatrix}	
+	\quad
+	\hat{\rho} = 
+	\begin{pmatrix}
+		\hat{\rho}_{0}\\
+		\vdots \\
+		\hat{\rho}_{255}\\
+	\end{pmatrix}	
+	$$
+	\item From all elements $\hat{\rho}_i$, select the one with the largest absolute value. This value is denoted as $\tilde{\rho}$.
+	\item Mark all elements $\hat{\rho}_i$ where its absolute value is closer to $\tilde{\rho}$ than some threshold $\tau$. For each marked value $\hat{\rho}_i$, the corresponding key candidate $k^*$ is classified as promising.
+	\item Repeat the process from step 2 to extend the number of guessed bits.
+	\item When all bits have been guessed, go through all promising key candidates and check if any plaintext $p_i$ results in the corresponding ciphertext $c_i$
+	
+	
+	
+\end{enumerate}
+
+
+
+
+
+\section{Countermeausure}
+\include{diagramSimonMasked.tex}
+
+\label{sec:main}
+
+
+
+%%%% 8. BILBIOGRAPHY %%%%
+\bibliographystyle{alpha}
+\bibliography{abbrev3,crypto,biblio}
+%%%% NOTES
+% - Download abbrev3.bib and crypto.bib from https://cryptobib.di.ens.fr/
+% - Use bilbio.bib for additional references not in the cryptobib database.
+%   If possible, take them from DBLP.
+
+\end{document}

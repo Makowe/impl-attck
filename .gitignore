@@ -4,3 +4,6 @@ __pycache__/
 *.npy
 *.cfg
 simon/traces/*
+debug/program
+*.o
+*.a

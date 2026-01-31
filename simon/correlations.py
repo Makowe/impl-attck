@@ -6,7 +6,7 @@ def calc_corrs_direct(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     at each time step. This implementation is fast for small samples.
 
     Example:
-        - x.shape = (10000, 256) # 10,000 measurements with 256 guessed keys each
+        - x.shape = (10000, 256) # Hamming weights for 10,000 plaintexts with 256 guessed keys each
         - y.shape = (10000, 5000) # 10,000 measurements with 5,000 time steps each
         - corrs(hws, power).shape -> (256, 5000) # for each of the 256 guessed keys, correlation values over 5,000 time steps.
     """

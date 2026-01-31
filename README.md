@@ -2,7 +2,7 @@
 
 - Git
 - VS Code
-- Miniconda3
+- Optional: Miniconda3 (This Readme file explains the python environment setup with Miniconda3. Any other Python installation is also fine.)
 
 # Clone the Repository
 
@@ -37,16 +37,16 @@ Literature for the Latex Paper
 Latex Paper
 
 
-# Run sample Jupyter Notebook
+# Setup a Python environment
 
 Start a terminal inside the impl-attck folder. Run:
 
 ```
 # Create a new conda environment
-conda create -n cw python=3.13
+conda create -n simon python=3.13
 
 # Activate the newly created environment.
-conda activate cw
+conda activate simon
 
 # Go to the folder with the jupyter notebooks
 cd chipwhisperer
@@ -62,13 +62,10 @@ jupyter notebook
 
 # Run the Simon Code
 
-Setup another conda environment. Start a terminal inside the impl-attck folder. Run:
+Use the previously created environment. Start a terminal inside the impl-attck folder. Run:
 
 ```
 # Create a new conda environment
-conda create -n simon python=3.13
-
-# Activate the newly created environment.
 conda activate simon
 
 # Go to the folder with the simon python code

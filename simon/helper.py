@@ -1,3 +1,4 @@
+from typing import Literal
 import numpy as np
 
 import simon_64_128_simulation
@@ -5,62 +6,66 @@ import simon_64_128_simulation
 import correlations
 from measurement import Measurements
 
+bits_count = np.frompyfunc(int.bit_count, 1, 1)
+
 
 class KeyHypothesis:
     """Wrapper for a guessed key and the correlation to the measurement.
-    The argument `num_guessed_bytes` tells how many bytes in the Hypothesis are guessed.
-    This is required for deriving sub-keys.
+    The argument `bit_mask` tells which bits in the Key are guessed.
     """
 
     def __init__(
         self,
         key: np.ndarray,
-        num_guessed_bytes: int,
+        bit_mask: np.ndarray,
         corr: np.float64 = np.float64(0.0),
     ):
-        self.key = key
-        self.num_guessed_bytes = num_guessed_bytes
+        self.key = np.copy(key)
+        self.bit_mask = np.copy(bit_mask)
         self.corr = corr
 
-    def get_mask(self) -> np.uint32:
-        """Create a bitmask for the current round key where all guessed bits are set to 1.
+    def get_intermediate_mask(
+        self, attacked_round: int, attacked_state: Literal["ADD_ROUND_KEY", "AND_GATE"]
+    ) -> np.uint32:
+        """Create a bitmask which has all bits set to 1 where the guessed key bits have influence on the attacked intermediate state.
 
         Example:
         ```
-            KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0000A4F3], 2).get_mask() -> 0x0000FFFF
-            KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x263AD743], 4).get_mask() -> 0xFFFFFFFF
-            KeyHypothesis([0x00000000, 0x00000000, 0x00343DF4, 0x3456DE76], 7).get_mask() -> 0x00FFFFFF
+            When attacking the state after adding the round key, each guessed key bit has influence on exactly 1 bit of the intermediate state
+            self.bit_mask = [0x00000000, 0x00000000, 0x00000000, 0x0000FFFF], attacked_round = 0, attacked_state = ADD_ROUND_KEY
+            -> intermediate_mask = 0x0000FFFF
+
+            self.bit_mask = [0x00000000, 0x00000000, 0x00FFFFFF, 0xFFFFFFFF], attacked_round = 1, attacked_state = ADD_ROUND_KEY
+            -> intermediate_mask = 0x00FFFFFF
+
+            When attacking the state after the AND gate, the resulting mask should only have the bits which can be predicted with the guessed key.
+            self.bit_mask = [0x00000000, 0x00000000, 0x00000000, 0x0000FFFF], attacked_round = 0, attacked_state = AND_GATE
+            -> intermediate_mask = 0x0001FF00
         ```
         """
-        if self.num_guessed_bytes % 4 == 0:
-            guessed_bytes_in_word = 4
+
+        key_mask = self.bit_mask[3 - attacked_round]
+
+        if attacked_state == "ADD_ROUND_KEY":
+            intermediate_mask = key_mask
+        elif attacked_state == "AND_GATE":
+            # based on the key mask, perform the rotations (<<<1 and <<<8) to get all bits which can be predicted with the guessed key.
+            intermediate_mask = np.uint32(
+                ((key_mask << 1) | (key_mask >> 31))
+                & ((key_mask << 8) | (key_mask >> 24))
+            )
         else:
-            guessed_bytes_in_word = self.num_guessed_bytes % 4
-        return ~np.uint32(0) >> (32 - (guessed_bytes_in_word * 8))
+            raise ValueError(f"Invalid attacked state: {attacked_state}")
+        return intermediate_mask
 
-    def get_sub_hypo(self, byte_val: int) -> "KeyHypothesis":
-        """Get a sub hypothesis for the current hypothesis with 1 additionally guessed byte
-
-        Example:
-        ```
-        KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0000A4F3], 2).get_sub_hypo(0x27) ->
-        KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0027A4F3], 3)
-        ```
-        """
-        byte_to_guess = self.num_guessed_bytes
-        array_idx = 3 - (byte_to_guess // 4)
-        array_offset = (byte_to_guess % 4) * 8
-        new_key = self.key.copy()
-        new_key[array_idx] &= ~np.uint32(0xFF << array_offset)
-        new_key[array_idx] |= np.uint32(byte_val << array_offset)
-        return KeyHypothesis(new_key, self.num_guessed_bytes + 1)
-
-    def get_sub_hypos(self) -> list["KeyHypothesis"]:
-        """Get a list of all 256 sub hypothesis for the current hypothesis with 1 additionally guessed byte
+    def get_sub_hypos(self, new_mask: np.ndarray) -> list["KeyHypothesis"]:
+        """Get a list of all sub hypothesis for the current hypothesis with additionally guessed bits according to the new mask
 
         Example:
         ```
-        KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0000A4F3], 2).get_sub_hypos() ->
+        self = KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0000A4F3]
+        new_mask = [0x00000000, 0x00000000, 0x00000000, 0x00FFFFFF]
+        result =
         [ KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0000A4F3], 3)
           KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0001A4F3], 3)
           ...
@@ -68,21 +73,34 @@ class KeyHypothesis:
         ```
         """
 
-        return [self.get_sub_hypo(byte_val) for byte_val in range(256)]
+        # Calculate number of bits which are newly guessed
+        new_bits = new_mask & ~self.bit_mask
+        num_new_bits = np.sum(bits_count(new_bits))
 
-    def get_round_to_attack(self) -> int:
-        """Create a bitmask for the current round key where all guessed bits are set to 1.
-        Example:
-            KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x0000A4F3], 2).get_round_to_attack() -> 0
-            KeyHypothesis([0x00000000, 0x00000000, 0x00000000, 0x263AD743], 4).get_round_to_attack() -> 0
-            KeyHypothesis([0x00000000, 0x00000000, 0x00343DF4, 0x3456DE76], 7).get_round_to_attack() -> 1
-        """
-        return (self.num_guessed_bytes - 1) // 4
+        # Array with new key guesses. The number of keys is based on the number of newly guessed bits.
+        # If 8 additional bits are guessed, there will be 256 new keys with all combinations of the guessed bits.
+        new_key_vals = np.tile(self.key, (2**num_new_bits, 1))
+
+        helper_vals = np.arange(2**num_new_bits, dtype=np.uint32)
+
+        new_bit_idx = 0
+        for word_idx in range(3, -1, -1):
+            for abs_bit_idx in range(32):
+                # If the current bit is a newly guessed bit, set the values in new_key_vals according to the helper_vals.
+                if new_bits[word_idx] & (1 << abs_bit_idx):
+                    new_key_vals[:, word_idx] |= (
+                        (helper_vals >> new_bit_idx) & 1
+                    ) << abs_bit_idx
+                    new_bit_idx += 1
+
+        return [
+            KeyHypothesis(new_key_vals[i], new_mask) for i in range(len(new_key_vals))
+        ]
 
 
 def filter_hypos(hypos: list[KeyHypothesis], threshold: float) -> list[KeyHypothesis]:
-    """Goes through a list of key hypotheses and creates a new list where all declined
-    hypotheses are removed.
+    """Go through a list of key hypotheses and creates a new list which only
+    contains promising hypotheses.
     """
 
     best_corr = max([abs(h.corr) for h in hypos])
@@ -90,14 +108,23 @@ def filter_hypos(hypos: list[KeyHypothesis], threshold: float) -> list[KeyHypoth
     return remaining_hypotheses
 
 
-def calc_corrs_for_hypos(hypos: list[KeyHypothesis], measurements: Measurements):
-    round_to_attack = hypos[0].get_round_to_attack()
-    mask = hypos[0].get_mask()
+def calc_corrs_for_hypos(
+    hypos: list[KeyHypothesis],
+    measurements: Measurements,
+    attacked_round: int,
+    attacked_state: Literal["ADD_ROUND_KEY", "AND_GATE"] = "ADD_ROUND_KEY",
+):
+    """For each combination of key and plaintext, calculate the hammmings weight of the attacked state.
+    Calculate the correlation between the calculate hamming weights and power traces.
+    For each hypothesis, find the maximum correlation over time.
+    Write the result to the hypothesis object.
+    """
+    mask = hypos[0].get_intermediate_mask(attacked_round, attacked_state)
 
     keys = np.array([hypo.key for hypo in hypos], dtype=np.uint32)
 
     expected_hws = simon_64_128_simulation.get_hws_for_guessed_keys(
-        measurements.plaintext, keys, round_to_attack, mask
+        measurements.plaintext, keys, attacked_round, mask, attacked_state
     )
 
     corrs = correlations.calc_corrs(expected_hws, measurements.power)

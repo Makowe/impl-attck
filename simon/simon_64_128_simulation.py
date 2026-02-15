@@ -1,3 +1,4 @@
+from typing import Literal
 import numpy as np
 
 import logger
@@ -9,7 +10,11 @@ def log_to_simulated_power(log: logger.Log) -> np.ndarray:
 
 
 def get_hws_for_guessed_keys(
-    plaintexts: np.ndarray, keys: np.ndarray, round: int, mask: np.uint32
+    plaintexts: np.ndarray,
+    keys: np.ndarray,
+    round: int,
+    mask: np.uint32,
+    attacked_state: Literal["ADD_ROUND_KEY", "AND_GATE"] = "ADD_ROUND_KEY",
 ) -> np.ndarray:
     """Perform the specified number of rounds on multiple plaintexts and multiple keys
     and return the hamming weight of the intermediate x state for each combination of plaintext and key.
@@ -26,15 +31,18 @@ def get_hws_for_guessed_keys(
         keys = keys.reshape((1, 4))
     assert keys.shape[1] == 4
 
-    xs = get_xs_after_round(plaintexts, keys, round)
+    xs = get_inter_states(plaintexts, keys, round, attacked_state)
     return bits_count(xs & mask).astype(np.uint32)
 
 
 bits_count = np.frompyfunc(int.bit_count, 1, 1)
 
 
-def get_xs_after_round(
-    plaintexts: np.ndarray, keys: np.ndarray, round: int
+def get_inter_states(
+    plaintexts: np.ndarray,
+    keys: np.ndarray,
+    attacked_round: int,
+    attacked_state: Literal["ADD_ROUND_KEY", "AND_GATE"] = "ADD_ROUND_KEY",
 ) -> np.ndarray:
     """Perform the specified number of rounds on multiple plaintexts and multiple keys
     and return the intermediate x state for each combination of plaintext and key.
@@ -51,7 +59,7 @@ def get_xs_after_round(
         keys = keys.reshape((1, 4))
     assert keys.shape[1] == 4
 
-    assert 0 <= round < 4
+    assert 0 <= attacked_round < 4
 
     round_keys = np.zeros_like(keys)
     round_keys[:, 0] = keys[:, 3]
@@ -63,7 +71,7 @@ def get_xs_after_round(
     y = np.repeat(plaintexts[:, 1:2], keys.shape[0], axis=1)
 
     # Perform the rounds.
-    for i in range(round + 1):
+    for i in range(attacked_round + 1):
         tmp = x.copy()
         x = (
             y
@@ -73,7 +81,16 @@ def get_xs_after_round(
         )
         y = tmp
 
-    return x
+    if attacked_state == "ADD_ROUND_KEY":
+        res = x
+
+    elif attacked_state == "AND_GATE":
+        # perform the AND gate of the next round.
+        res = ((x << 1) | (x >> 31)) & ((x << 8) | (x >> 24))
+    else:
+        raise ValueError(f"Invalid attacked state: {attacked_state}")
+
+    return res
 
 
 # PRIVATE

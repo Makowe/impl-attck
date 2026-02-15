@@ -27,12 +27,12 @@ def calc_corrs(x: np.ndarray, y: np.ndarray, step_size=10) -> np.ndarray:
     at each time step. This implementation is optimized for big samples.
 
     Example:
-        - x.shape = (10000, 256) # 10,000 measurements with 256 guessed keys each
-        - y.shape = (10000, 5000) # 10,000 measurements with 5,000 time steps each
-        - corrs(hws, power).shape -> (256, 5000) # for each of the 256 guessed keys, correlation values over 5,000 time steps.
+        - x.shape = (10000, 256) # hamming weights of intermediate state for 10,000 plaintexts and 256 guessed keys.
+        - y.shape = (10000, 5000) # 10,000 measurements with 5,000 samples each.
+        - result.shape -> (256, 5000) # correlation values for each of the 256 guessed keys over 5,000 samples.
 
     Arguments:
-        step_size: Number of samples that are processed in 1 step.
+        step_size: Number of traces that are processed in 1 step to increase performance.
     """
     assert x.shape[0] == y.shape[0]
 

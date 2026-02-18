@@ -7,3 +7,7 @@ simon/traces/*
 debug/program
 *.o
 *.a
+*.aux
+*.auxlock
+*.out
+*.log

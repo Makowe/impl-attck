@@ -1,0 +1,51 @@
+\newcommand{\etalchar}[1]{$^{#1}$}
+\begin{thebibliography}{GGJR{\etalchar{+}}11}
+
+\bibitem[BCO04]{CHES:BriClaOli04}
+Eric Brier, Christophe Clavier, and Francis Olivier.
+\newblock Correlation power analysis with a leakage model.
+\newblock In Marc Joye and Jean-Jacques Quisquater, editors, {\em CHES~2004},
+  volume 3156 of {\em {LNCS}}, pages 16--29. Springer, Berlin, Heidelberg,
+  August 2004.
+
+\bibitem[BK15]{barker2015recommendation}
+Elaine~B Barker and John~Michael Kelsey.
+\newblock {\em NIST Special Publication 800-90A Revision 1: Recommendation for
+  random number generation using deterministic random bit generators}.
+\newblock US Department of Commerce, National Institute of Standards and
+  Technology, 2015.
+
+\bibitem[BSS{\etalchar{+}}15]{beaulieu2015simon}
+Ray Beaulieu, Douglas Shors, Jason Smith, Stefan Treatman-Clark, Bryan Weeks,
+  and Louis Wingers.
+\newblock The simon and speck lightweight block ciphers.
+\newblock In {\em Proceedings of the 52nd annual design automation conference},
+  pages 1--6, 2015.
+
+\bibitem[GGJR{\etalchar{+}}11]{gilbert2011testing}
+Benjamin~Jun Gilbert~Goodwill, Josh Jaffe, Pankaj Rohatgi, et~al.
+\newblock A testing methodology for side-channel resistance validation.
+\newblock In {\em NIST non-invasive attack testing workshop}, volume~7, pages
+  115--136, 2011.
+
+\bibitem[SR15]{seuschek2015side}
+Hermann Seuschek and Stefan Rass.
+\newblock Side-channel leakage models for risc instruction set architectures
+  from empirical data.
+\newblock In {\em 2015 Euromicro Conference on Digital System Design}, pages
+  423--430. IEEE, 2015.
+
+\bibitem[TKL04]{trichina2004small}
+Elena Trichina, Tymur Korkishko, and Kyung~Hee Lee.
+\newblock Small size, low power, side channel-immune aes coprocessor: Design
+  and synthesis results.
+\newblock In {\em International conference on advanced encryption standard},
+  pages 113--127. Springer, 2004.
+
+\bibitem[Tri03]{EPRINT:Trichina03}
+Elena Trichina.
+\newblock Combinational logic design for {AES} subbyte transformation on masked
+  data.
+\newblock Cryptology ePrint Archive, Report 2003/236, 2003.
+
+\end{thebibliography}

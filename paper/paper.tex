@@ -37,7 +37,7 @@
 
 
 \begin{abstract}
-This paper investigates implementation-level vulnerabilities of the lightweight block cipher SIMON by means of power-based side-channel analysis. A software implementation on an embedded ARM Cortex-M4 target is analyzed, demonstrating that data-dependent power consumption enables practical key recovery using Correlation Power Analysis (CPA) with as few as 500 traces. To mitigate these vulnerabilities, a Boolean masking countermeasure is implemented and its impact on attack feasibility evaluated. Experimental results show that masking increases the required traces for successful key recovery beyond 50,000, significantly reducing but not eliminating leakage. Welch's t-test is further employed for statistical leakage assessment, revealing strong data-dependent leakage (t-values up to 72.66) in unprotected implementations, while masked versions require substantially more traces for detectable leakage. These findings emphasize the importance of careful countermeasure design in lightweight cryptographic implementations.
+This paper investigates implementation-level vulnerabilities of the lightweight block cipher SIMON by means of power-based side-channel analysis. A software implementation on an embedded ARM Cortex-M4 target is analyzed, demonstrating that data-dependent power consumption enables practical key recovery using Correlation Power Analysis (CPA) with as few as 500 traces. To mitigate these vulnerabilities, a Boolean masking countermeasure is implemented and its impact on attack feasibility evaluated. Experimental results show that masking increases the required traces for successful key recovery beyond 50,000, significantly reducing but not eliminating leakage. Welch's t-test is further employed for statistical leakage assessment, revealing strong data-dependent leakage (t-values up to 600) in unprotected implementations, while masked versions require substantially more traces for detectable leakage. These findings emphasize the importance of careful countermeasure design in lightweight cryptographic implementations.
 
 \keywords{lightweight cryptography, side-channel analysis, correlation power analysis, SIMON, masking, implementation security, ChipWhisperer}
 \end{abstract}
@@ -49,11 +49,10 @@ SIMON, like many cryptographic algorithms, is susceptible to implementation-leve
 
 This paper investigates Correlation Power Analysis (CPA) applied to a software implementation of SIMON. Furthermore, the masking countermeasure is analyzed and its effectiveness in increasing resistance against power-based attacks is evaluated. The presented work follows a systematic attack-and-evaluation methodology commonly used in the analysis of cryptographic implementations.
 
-\subsection{Background}
-\subsubsection{The Simon Block Cipher}
-Simon is a family of lightweight block ciphers based on a Feistel structure. The cipher supports multiple configurations with block sizes of 32, 48, 64, 96, and 128 bits, and key sizes ranging from 64 to 256 bits. Unlike some cipher families, Simon's key size does not always correspond directly to its block size; the cipher supports various combinations.
+\paragraph{The Simon Block Cipher}
+Simon is a family of lightweight block ciphers based on a Feistel structure. The cipher supports multiple configurations with block sizes of 32, 48, 64, 96, and 128 bits, and key sizes ranging from 64 to 256 bits. \cite{beaulieu2015simon}
 
-This study focuses on \textbf{Simon-64/128}, which operates on 64-bit blocks using a 128-bit key over \textbf{44 rounds}. The cipher is designed for optimal performance in both hardware and software implementations, featuring only bitwise XOR, AND, and rotation operations.
+This study focuses on Simon-64/128, which operates on 64-bit blocks using a 128-bit key over 44 rounds. The cipher is designed for optimal performance in both hardware and software implementations, featuring only bitwise XOR, AND, and rotation operations.
 
 The round function for Simon-64/128 is defined as:
 \[
@@ -72,17 +71,9 @@ Here, \(S^j\) denotes left circular shift by \(j\) bits, \(\oplus\) represents b
     \label{fig:simon_round}
 \end{figure}
 
-The key schedule for Simon-64/128 generates \textbf{44 round keys} \(k_0, \ldots, k_{43}\) from the 128-bit master key using a linear recurrence relation. Intermediate states of particular interest for side-channel analysis include:
-\begin{itemize}
-    \item The output of the \(f(x)\) function in the first round, which depends directly on the plaintext and the first round key
-    \item The XOR operations between round keys and the data state, especially in early rounds
-    \item The AND operation within \(f(x)\), which introduces nonlinearity and may exhibit distinct power consumption patterns
-    \item Intermediate states after each round, particularly during the first few rounds where key dependency is most exploitable
-\end{itemize}
+The key schedule for Simon-64/128 generates 44 round keys \(k_0, \ldots, k_{43}\) from the 128-bit key $k$ using a linear recurrence relation. The first 4 round keys $k_0, k_1, k_2$ and $k_3$ form the original key $k$.
 
-These intermediate states are vulnerable to side-channel attacks due to their direct dependency on both plaintext and key material, making them ideal targets for correlation analysis.
-
-\subsubsection{Side-Channel Attacks}
+\paragraph{Side-Channel Attacks}
 Side-channel attacks exploit physical leakage from a device during cryptographic operations. Correlation Power Analysis (CPA) is a powerful statistical attack that correlates hypothetical power consumption models with measured power traces to recover secret keys.
 
 The success of CPA depends on an accurate power model that approximates the device's actual power consumption. Common models include:
@@ -91,20 +82,15 @@ The success of CPA depends on an accurate power model that approximates the devi
     \item Hamming Distance (HD): Power consumption proportional to the number of bit changes between consecutive states
 \end{itemize}
 
-\section{Attacking the unprotected Implementation}
-\subsection{Experimental Setup}
+\section{Attack on the unprotected Implementation}
 
 The experimental setup utilized a 32-bit ARM microcontroller running at \(7.38\ \mathrm{MHz}\). An unprotected implementation of Simon-64/128 was written in C. Power traces were collected using the ChipWhisperer-Lite platform with a sampling rate of \(29.5\ \mathrm{MS/s}\).
 
 For each measurement, 50.000 traces with random plaintexts were recorded. 5 independent measurements with different keys were taken. 
 
-\subsection{Correlation Power Analysis (CPA)}
-
-A CPA was performed on the first 4 rounds of Simon-64/128. Each round brings in a 32-bit round key. The round keys $k_0, k_1, k_2$ and $k_3$ form the complete 128-bit key $k$.
-
-The CPA is based on the Hamming weight model. Two independent attacks based on different intermediate states were realized.
+\paragraph{Correlated Power Analysis} A CPA was performed on the first 4 rounds of Simon-64/128to extract the round keys $k_0, k_1, k_2$ and $k_3$. The CPA is based on the Hamming weight model. Two independent attacks based on different intermediate states were realized.
 \begin{itemize}
-	\item The first attack is based on the state $x_{i+1}$ which is the result of adding the round key $k_i$ via XOR. Attacking this state makes it easy to split the attack into smaller parts because every bit of $k_i$ only influences 1 bit of $x_{i+1}$. The disadvantage is that the XOR-operation is symmetric which will result in the same absolute correlation for each key guess and its inverse. This will reduce the overall performance of the attack.
+	\item The first attack is based on the state $x_{i+1}$ which is the result of adding the round key $k_i$ via XOR. Attacking this state makes it easy to split the attack into smaller parts because every bit of $k_i$ only influences 1 bit of $x_{i+1}$. The disadvantage is that the XOR-operation is symmetric which will result in the same absolute correlation for each key guess and its inverse.
 	\item The second attack is based on the result of the AND-Operation in the subsequent round. The AND-Gate eliminates symmetry which leads to different correlation values for inverted key guesses. One difficulty here is that each bit of the intermediate state is influenced by multiple key bits. Therefore, the position of the guessed bits must be chosen wisely. (See Figure \ref{fig:badExample} and Figure \ref{fig:goodExample})
 \end{itemize}
 
@@ -122,8 +108,7 @@ The CPA is based on the Hamming weight model. Two independent attacks based on d
 	\label{fig:goodExample}
 \end{figure}
 
-\subsubsection{Attack Steps}
-The CPA attack was executed according to the following procedure:
+\paragraph{Attack steps} The CPA attack was executed according to the following procedure:
 \begin{enumerate}
 	\item Collect $n$ power traces with $m$ samples each. The whole measurement is a tuple $(T, P, C)$. $T$ is a Matrix of size $(n,m)$ which contains all traces $t_i$. $P$ contain the plaintexts $p_i$ and $C$ contains the ciphertexts $c_i$.
 	$$T
@@ -182,13 +167,11 @@ The CPA attack was executed according to the following procedure:
 	$$
 	\item Based on a threshold $\tau$, find all values $\hat{\rho}_i$ where $|\hat{\rho}_i| + \tau \geq \tilde{\rho}$ The corresponding key candidates $k^*_i$ are marked as promising.
 	\item For all promising key candidates, create sub candidates and repeat the process from step 3. With this approach, all possible key candidates form a tree where only promising paths are further processed.
-	\item When all bits of a round have been guessed, keep the promising key candidates and continue with the next round.
-	After all 4 rounds, go through the remaining key candidates and check if encrypting the plaintext $p_1$ results in the corresponding ciphertext $c_1$.
+	\item After attacking all 4 rounds, go through the remaining key candidates and check if encrypting the plaintext $p_1$ results in the corresponding ciphertext $c_1$.
 \end{enumerate}
 
-\subsubsection{Attack Results}
-
-The power traces clearly show the execution of the SIMON round functions (see Figure \ref{fig:power_graph_plain}). This is useful for an attack because the trace can be shortened to the first few rounds. In our experiments only the first 800 samples were included into the attack.
+\paragraph{Attack Results}
+The power traces clearly show the execution of the SIMON round functions (see Figure \ref{fig:power_graph_plain}). This is useful for the attack because the trace can be shortened to the first few rounds. In our experiments only the first 800 samples were included into the attack.
 
 \begin{figure}[H]
 	\centering
@@ -226,8 +209,7 @@ For attack model 2, the correct key guess was often found as the top candidate, 
 This might be caused by the fact, that instead of 8 bits, only 7 bits are included in the Hamming weight calculation (see chapter 2.2 and Figure \ref{fig:goodExample} for explanation).
 The threshold $\tau$ was therefore increased to $0.03$ because otherwise the correct key might not be found.
 
-With the chosen parameters, both attacks are equally reliable and have a similar performance. The correct key can be extracted within a few seconds.
-
+With the chosen parameters, both attacks are equally reliable and have a similar performance. The correct key can be extracted on a standard computer within a few seconds.
 
 \begin{figure}[H]
     \centering
@@ -246,21 +228,50 @@ With the chosen parameters, both attacks are equally reliable and have a similar
     \label{fig:correlation_evolution_plain}
 \end{figure}
 
-\section{Countermeasures and Their Impact}
-\subsection{Masking Implementation}
-Boolean masking was implemented as a countermeasure against side-channel attacks. The sensitive intermediate state was split into two shares using random masks. All operations were performed on these shares, with the masks being refreshed between operations. The implementation maintained the original Simon algorithm's functionality while significantly increasing the noise in power measurements.
+\section{Masking as a Countermeasure}
+Boolean masking with two shares was implemented as a countermeasure. 184 random bytes are generated before the encryption using a PRNG based on HMAC (see \cite{barker2015recommendation}). 8 bytes of randomness are used to mask the plaintext via XOR. 4 additional bytes are required in each of the 44 rounds to perform the AND-operation. The binary rotations and XOR-operations within the round do not require additional masks. The operations can be performed independently on both shares.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\linewidth]{../simon/diagrams/power_graph_masked.pdf}
-    \caption{In this graph, 25 of the 44 rounds are visible. Each round takes approximately 4 times as long compared to the unmasked implementation.}
-    \label{fig:power_graph_masked}
+Figure \ref{fig:simon_round_masked} shows the updated round function. The blue content is newly added compared to the original round function. The AND-Gate cannot be performed on both shares independently. The Trichina AND-Gate was implemented to avoid any leakage. The inputs of this AND-Gate are the shares of $a$ and $b$, additionally, a new mask $m_c$ is brought in. 
+$$
+	a_m = a \oplus m_a \quad\quad b_m = b \oplus m_b \quad\quad c_m = c \oplus m_c 
+$$
+The AND-Gate must generate the share $c_m$ such that:
+
+$$
+	c = a \cdot b \quad\rightarrow\quad c_m \oplus m_c = (a_m \oplus m_a) \cdot (b_m \oplus m_b)
+$$
+This equation can be rearranged to the following form. It can be shown that all intermediate values in this formula are independent from the sensitive values $a$, $b$ and $c$. \cite{EPRINT:Trichina03}, \cite{trichina2004small}
+
+$$
+	c_m = (((a_m  b_m \oplus m_c) \oplus a_m m_b) \oplus b_m m_a) \oplus m_a m_b
+$$
+
+\begin{figure}[ht]
+	\centering
+	\input{diagramSimonMasked.tex}
+	\caption{One round of the masked Simon implementation}
+	\label{fig:simon_round_masked}
 \end{figure}
 
+\paragraph{Avoiding Pitfalls} The masked implementation was written in Assembly language (ASM). Potential hamming distance leakage was taken into account during implementation. Literature shows that updating a CPU register will leak the hamming distance between old and new value. Also, performing two arithmetic instructions in a row leaks the hamming distance between input operands, even if different CPU registers are used in the two instructions. \cite{seuschek2015side}, \cite{CHES:BriClaOli04}
 
-\subsection{Attack on Masked Implementation}
-The CPA attack was repeated on the masked implementation using 50,000 traces. While the unmasked implementation revealed the full key within 500 traces, the masked version showed substantially reduced correlation peaks. As shown in Figs. \ref{fig:correlation_time_masked} and \ref{fig:correlation_evolution_masked}, the attack managed to narrow down key candidates but did not achieve full key recovery within the 50,000 trace limit, demonstrating the effectiveness of masking in increasing attack complexity.
+To avoid leaking confidential information, following precautions were taken:
 
+\begin{itemize}
+	\item Masked values and the masks itself shall be stored in seperated registers. In our implementation, even register numbers were used for masked values and odd registers for masks.
+	\item Masked values and their corresponding masks shall not be processed in two consecutive instructions. Thereofore, dummy instructions were added to clear values within the arithmetic logical unit (ALU).
+	\item Intermediate values which occur, e.g., during the Trichina-AND-Gate, shall be cleared before being reused again.
+\end{itemize}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.5\linewidth]{../simon/diagrams/power_graph_masked.pdf}
+	\caption{In this graph, 25 of the 44 rounds are visible. Each round takes approximately 4 times as long compared to the unmasked implementation.}
+	\label{fig:power_graph_masked}
+\end{figure}
+
+\paragraph{Attack on the masked implementation}
+The attacks were repeated on the masked implementation using 50,000 traces. At no point in time, the correct key candidate stands out from the other key candidates. With an increasing number of traces, the maximum correlation goes close to zero. (see Figure \ref{fig:masked_attack})
 \begin{figure}[H]
     \centering
     \begin{subfigure}{0.48\textwidth}
@@ -274,49 +285,53 @@ The CPA attack was repeated on the masked implementation using 50,000 traces. Wh
         \includegraphics[width=\linewidth]{../simon/diagrams/correlation_over_num_measurements_masked.pdf}
         \caption{Maximum correlation values as the number of traces increases.}
     \end{subfigure}
-    \caption{Attack results on masked Simon implementation. (a) Power traces from the masked implementation showing increased noise. (b) Mean power traces with standard deviation bands demonstrating reduced data dependency.}
+    \caption{Attack results on masked Simon implementation.}
     \label{fig:masked_attack}
 \end{figure}
 
 \section{Statistical Leakage Assessment}
 \subsection{Methodology}
-Welch's t-test (Test Vector Leakage Assessment, TVLA) was employed to detect leakage in both unprotected and masked implementations. Three sets of traces were collected:
+Welch's t-test (Test Vector Leakage Assessment, TVLA) was employed to detect leakage in both unprotected and masked implementations. Two sets of traces were collected:
 \begin{itemize}
-    \item \textbf{Set 1:} Fixed key, fixed plaintext (reference set)
+    \item \textbf{Set 1:} Fixed key, fixed plaintext
     \item \textbf{Set 2:} Fixed key, random plaintexts
-    \item \textbf{Set 3:} Random keys, fixed plaintext
 \end{itemize}
 
-The t-statistic was computed for each time sample between Set 1 and Set 2 (to detect data dependency) and between Set 1 and Set 3 (to detect key dependency). A threshold of \(|t|>4.5\) indicates leakage with 99.999\% confidence.
+The t-value was computed for each time sample between set 1 and set 2. A threshold of \(|t|>4.5\) indicates that the mean power consumption in set 1 is significantly different from set 2 with 99.999\% confidence \cite{gilbert2011testing}. In a perfect implementation, the mean values of set 1 and 2 should be equal at every point in time. Therefore a high t-value is a indicator that confidential information might be leaked.
 
 \subsection{Results}
+The t-value over time can be seen in Figure \ref{fig:leakage}.
 \begin{itemize}
-    \item \textbf{Unprotected Simon:} Strong leakage was detected with t-values exceeding 72.66 at multiple time points (Fig. \ref{fig:leakage_plain}), confirming high vulnerability to CPA attacks.
-    \item \textbf{Masked Simon:} The t-values remained below the threshold for up to 10,000 traces. However, with 50,000 traces, subtle leakage became detectable, though significantly reduced compared to the unprotected implementation (Fig. \ref{fig:leakage_masked}).
+    \item \textbf{Unprotected Simon:} Strong leakage was detected with t-values exceeding 600 at multiple time points, confirming high vulnerability to CPA attacks.
+    \item \textbf{Masked Simon:} The t-values remained below the threshold for most of the samples. However, at the beginning of round 1, the t-values are outside the expected range. Additionally, there are some samples at later rounds where $|t|$ is larger than $4.5$.
+    The t-values at the beginning are likely caused by hamming distance leakage at the beginning of round 1. The unmasked plaintext is still present in a CPU register before it is cleared in explicitly in an assembly instruction. This is uncritical for a CPA because no confidential values are being processed at that time. This hypothesis is supported by the fact that later SIMON rounds use the identical code but do not show such a high t-value.
+    
 \end{itemize}
 
 \begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\linewidth]{../simon/diagrams/leakage_over_time_plain.pdf}
-    \caption{Leakage assessment results for unprotected Simon implementation using Welch's t-test. Strong data-dependent leakage is visible with t-values exceeding 72.66.}
-    \label{fig:leakage_plain}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\linewidth]{../simon/diagrams/leakage_over_time_masked.pdf}
-    \caption{Leakage assessment results for masked Simon implementation using Welch's t-test. Leakage is significantly reduced but still detectable with 50,000 traces.}
-    \label{fig:leakage_masked}
+	\centering
+    \begin{subfigure}{0.48\textwidth}
+    	\centering
+    	\includegraphics[width=\linewidth]{../simon/diagrams/leakage_over_time_plain.pdf}
+    	\caption{Unprotected Implementation}
+    \end{subfigure}
+    \begin{subfigure}{0.48\textwidth}
+    	\centering
+    	\includegraphics[width=\linewidth]{../simon/diagrams/leakage_over_time_masked.pdf}
+    	\caption{Masked Implementation}
+    \end{subfigure}
+    \caption{Leakage assessment results for unprotected and masked Simon implementation using Welch's t-test.}
+    \label{fig:leakage}
 \end{figure}
 
 \section{Discussion}
-Our results demonstrate a clear trade-off between security and performance in lightweight cryptography implementations. The unprotected Simon cipher proved highly vulnerable to CPA attacks, with full key recovery possible using only 500 traces. The Boolean masking countermeasure significantly increased the attack complexity, requiring more than two orders of magnitude additional traces for successful key recovery.
+Our results demonstrate a clear trade-off between security and performance in lightweight cryptography implementations. The unprotected Simon cipher proved highly vulnerable to CPA attacks, with full key recovery possible using only 500 traces. The Boolean masking countermeasure significantly increased the attack complexity. Even with 50.000 traces it was not possible to recover the key.
 
 However, the masking implementation did not completely eliminate leakage, as evidenced by the TVLA results with large trace sets. This highlights several important considerations:
 \begin{itemize}
     \item \textbf{Implementation quality:} The effectiveness of masking depends heavily on proper implementation, including secure random number generation and protection against higher-order attacks.
     \item \textbf{Trace requirements:} While masking increases the number of traces required for successful attacks, determined attackers with sufficient measurement capabilities may still succeed.
-    \item \textbf{Performance overhead:} The masking implementation introduced approximately 40\% performance overhead, which may be acceptable for many IoT applications but could be prohibitive for extremely resource-constrained devices.
+    \item \textbf{Performance overhead:} The masking implementation increased the time for the time for encryption time by factor 4. Additional time is required for generating the random numbers. This may be acceptable for many IoT applications but could be prohibitive for extremely resource-constrained devices.
 \end{itemize}
 
 \section{Conclusion}
@@ -344,8 +359,7 @@ Microcontroller & STM32F303 (ARM Cortex-M4) \\
 Clock frequency & 7.38 MHz \\
 Sampling rate & 29.5 MS/s \\
 Samples per trace & 5,000 \\
-Number of traces (unmasked) & 500 \\
-Number of traces (masked) & 50,000 \\
+Traces per Measurement & 50,000 \\
 TVLA threshold & ±4.5 \\
 \bottomrule
 \end{tabular}
@@ -353,17 +367,23 @@ TVLA threshold & ±4.5 \\
 \label{tab:params}
 \end{table}
 
-\begin{thebibliography}{99}
-\bibitem{simon2013}
-Beaulieu, R., Shors, D., Smith, J., Treatman-Clark, S., Weeks, B., \& Wingers, L. (2013). The SIMON and SPECK Families of Lightweight Block Ciphers. \textit{CRYPTOLOGY EPRINT ARCHIVE}.
-
-\bibitem{cpa2004}
-Brier, E., Clavier, C., \& Olivier, F. (2004). Correlation Power Analysis with a Leakage Model. \textit{International Workshop on Cryptographic Hardware and Embedded Systems}.
-
-\bibitem{tvla2011}
-Goodwill, G., Jun, B., Jaffe, J., \& Rohatgi, P. (2011). A testing methodology for side-channel resistance validation. \textit{NIST non-invasive attack testing workshop}.
+\bibliographystyle{alpha}
+\bibliography{abbrev3,crypto,biblio}
 
 
-\end{thebibliography}
+%\begin{thebibliography}{99}
+%\bibitem{simon2013}
+%Beaulieu, R., Shors, D., Smith, J., Treatman-Clark, S., Weeks, B., \& Wingers, L. (2013). The SIMON and SPECK Families of Lightweight Block Ciphers. \textit{CRYPTOLOGY EPRINT ARCHIVE}.
+
+%\bibitem{cpa2004}
+%Brier, E., Clavier, C., \& Olivier, F. (2004). Correlation Power Analysis with a Leakage Model. \textit{International Workshop on Cryptographic Hardware and Embedded Systems}.
+
+%\bibitem{tvla2011}
+%Goodwill, G., Jun, B., Jaffe, J., \& Rohatgi, P. (2011). A testing methodology for side-channel resistance validation. \textit{NIST non-invasive attack testing workshop}.
+
+%\bibitem{trichina2003}
+
+%\end{thebibliography}
+
 
 \end{document}

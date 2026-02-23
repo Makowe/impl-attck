@@ -11,3 +11,4 @@ debug/program
 *.auxlock
 *.out
 *.log
+paper/paper.synctex.gz

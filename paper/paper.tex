@@ -253,7 +253,7 @@ $$
 	\label{fig:simon_round_masked}
 \end{figure}
 
-\paragraph{Avoiding Pitfalls} The masked implementation was written in Assembly language (ASM). Potential hamming distance leakage was taken into account during implementation. Literature shows that updating a CPU register will leak the hamming distance between old and new value. Also, performing two arithmetic instructions in a row leaks the hamming distance between input operands, even if different CPU registers are used in the two instructions. \cite{seuschek2015side}, \cite{CHES:BriClaOli04}
+\paragraph{Avoiding Pitfalls} The masked implementation was written in Assembly language (ASM). Potential hamming distance leakage was taken into account during implementation. Literature shows that updating a CPU register will leak the hamming distance between old and new value. Also, performing two arithmetic instructions in a row leaks the hamming distance between input/output operands, even if different CPU registers are used in the two instructions. \cite{seuschek2015side}, \cite{CHES:BriClaOli04}
 
 To avoid leaking confidential information, following precautions were taken:
 
@@ -331,7 +331,7 @@ However, the masking implementation did not completely eliminate leakage, as evi
 \begin{itemize}
     \item \textbf{Implementation quality:} The effectiveness of masking depends heavily on proper implementation, including secure random number generation and protection against higher-order attacks.
     \item \textbf{Trace requirements:} While masking increases the number of traces required for successful attacks, determined attackers with sufficient measurement capabilities may still succeed.
-    \item \textbf{Performance overhead:} The masking implementation increased the time for the time for encryption time by factor 4. Additional time is required for generating the random numbers. This may be acceptable for many IoT applications but could be prohibitive for extremely resource-constrained devices.
+    \item \textbf{Performance overhead:} The masking implementation increased the encryption time by factor 4. Additional time is required for generating the random numbers. This may be acceptable for many IoT applications but could be prohibitive for extremely resource-constrained devices.
 \end{itemize}
 
 \section{Conclusion}

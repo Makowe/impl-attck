@@ -39,9 +39,10 @@ Custom Python Functions for Encryption and Correlation Computation are located a
 ./simon/*.py
 ```
 
-The Jupyter Notebooks to generate diagrams and results are at:
+The Jupyter Notebooks for generating diagrams are the resulting PDF-files are at:
 ```
-simon/diagrams/*
+simon/diagrams/*.ipynb
+simon/diagrams/*.pdf
 ```
 
 ### Demo Measurements:

@@ -4,11 +4,6 @@ import numpy as np
 import logger
 
 
-def log_to_simulated_power(log: logger.Log) -> np.ndarray:
-    x_values = _get_x_values_from_log(log)
-    return bits_count(x_values)
-
-
 def get_hws_for_guessed_keys(
     plaintexts: np.ndarray,
     keys: np.ndarray,
@@ -93,12 +88,11 @@ def get_inter_states(
     return res
 
 
-# PRIVATE
-
-
-def _get_x_values_from_log(log: logger.Log) -> np.ndarray:
+def log_to_simulated_power(log: logger.Log) -> np.ndarray:
+    """Take the log from the simon encryption and generate a simulated power trace."""
     x_values = []
     for e in log.entries:
         if e.label.startswith("X"):
             x_values.append(e.content[0])
-    return np.array(x_values, dtype=np.uint32)
+    x_values = np.array(x_values, dtype=np.uint32)
+    return bits_count(x_values)

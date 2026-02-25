@@ -2,8 +2,8 @@ from typing import Literal
 import numpy as np
 
 import simon_64_128_simulation
-
 import correlations
+
 from measurement import Measurements
 
 bits_count = np.frompyfunc(int.bit_count, 1, 1)

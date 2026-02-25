@@ -37,7 +37,7 @@
 
 
 \begin{abstract}
-This paper investigates implementation-level vulnerabilities of the lightweight block cipher SIMON by means of power-based side-channel analysis. A software implementation on an embedded ARM Cortex-M4 target is analyzed, demonstrating that data-dependent power consumption enables practical key recovery using Correlation Power Analysis (CPA) with as few as 500 traces. To mitigate these vulnerabilities, a Boolean masking countermeasure is implemented and its impact on attack feasibility evaluated. Experimental results show that masking increases the required traces for successful key recovery beyond 50,000, significantly reducing but not eliminating leakage. Welch's t-test is further employed for statistical leakage assessment, revealing strong data-dependent leakage (t-values up to 600) in unprotected implementations, while masked versions require substantially more traces for detectable leakage. These findings emphasize the importance of careful countermeasure design in lightweight cryptographic implementations.
+This paper investigates implementation-level vulnerabilities of the lightweight block cipher SIMON by means of power-based side-channel analysis. A software implementation on an embedded ARM Cortex-M4 target is analyzed, demonstrating that data-dependent power consumption enables practical key recovery using Correlation Power Analysis (CPA) with as few as 1000 traces. To mitigate these vulnerabilities, a Boolean masking countermeasure is implemented and its impact on attack feasibility evaluated. Experimental results show that masking increases the required traces for successful key recovery beyond 50,000, significantly reducing but not eliminating leakage. Welch's t-test is further employed for statistical leakage assessment, revealing strong data-dependent leakage (t-values up to 600) in unprotected implementations, while masked versions require substantially more traces for detectable leakage. These findings emphasize the importance of careful countermeasure design in lightweight cryptographic implementations.
 
 \keywords{lightweight cryptography, side-channel analysis, correlation power analysis, SIMON, masking, implementation security, ChipWhisperer}
 \end{abstract}
@@ -201,7 +201,7 @@ For the second attack, the graph is not symmetric. In the shown example, the cor
     \label{fig:cpa_correlation_traces}
 \end{figure}
 
-It was also analyzed how the correlation changes with an increasing number of captured traces. Figure \ref{fig:correlation_evolution_plain} shows the evolution for one measurement campaign and 8 bits being guessed. The experiments have shown that 500 traces are enough to reliably extract the key. 
+It was also analyzed how the correlation changes with an increasing number of captured traces. Figure \ref{fig:correlation_evolution_plain} shows the evolution for one measurement campaign and 8 bits being guessed. The experiments have shown that 1000 traces are enough to reliably extract the key. 
 
 For attack model 1, the correct key guess was always located within the Top 8 of all key guesses. Because of the symmetry, there are always at least 2 candidates that will be kept for the next attack round. The correlation threshold $\tau$ for marking a key candidate as promising was set to $0.02$.
 
@@ -325,7 +325,7 @@ The t-value over time can be seen in Figure \ref{fig:leakage}.
 \end{figure}
 
 \section{Discussion}
-Our results demonstrate a clear trade-off between security and performance in lightweight cryptography implementations. The unprotected Simon cipher proved highly vulnerable to CPA attacks, with full key recovery possible using only 500 traces. The Boolean masking countermeasure significantly increased the attack complexity. Even with 50.000 traces it was not possible to recover the key.
+Our results demonstrate a clear trade-off between security and performance in lightweight cryptography implementations. The unprotected Simon cipher proved highly vulnerable to CPA attacks, with full key recovery possible using 1000 traces. The Boolean masking countermeasure significantly increased the attack complexity. Even with 50.000 traces it was not possible to recover the key.
 
 However, the masking implementation did not completely eliminate leakage, as evidenced by the TVLA results with large trace sets. This highlights several important considerations:
 \begin{itemize}
@@ -335,7 +335,7 @@ However, the masking implementation did not completely eliminate leakage, as evi
 \end{itemize}
 
 \section{Conclusion}
-This study demonstrates that an unprotected software implementation of SIMON-64/128 is highly vulnerable to Correlation Power Analysis, enabling full key recovery with as few as 500 power traces. The application of Boolean masking as a countermeasure significantly increases the attack complexity, requiring over 50,000 traces while still showing detectable statistical leakage.
+This study demonstrates that an unprotected software implementation of SIMON-64/128 is highly vulnerable to Correlation Power Analysis, enabling full key recovery with as few as 1000 power traces. The application of Boolean masking as a countermeasure significantly increases the attack complexity, requiring over 50,000 traces while still showing detectable statistical leakage.
 
 Our findings emphasize that while masking provides substantial protection against side-channel attacks, it does not offer absolute security and must be implemented carefully to avoid implementation flaws. Future work should investigate higher-order masking schemes and their practical applicability to resource-constrained IoT devices, as well as explore alternative countermeasures such as shuffling or dual-rail logic.
 

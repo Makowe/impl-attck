@@ -3,7 +3,6 @@ __pycache__/
 *.cwp
 *.npy
 *.cfg
-simon/traces/*
 debug/program
 *.o
 *.a
@@ -12,3 +11,7 @@ debug/program
 *.out
 *.log
 paper/paper.synctex.gz
+# Ignore all measurements like 01_, 02, ...
+# Only keep demo measurements
+simon/traces/0*
+simon/traces/1*

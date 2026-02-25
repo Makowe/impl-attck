@@ -2,7 +2,7 @@
 
 - Git
 - VS Code
-- Optional: Miniconda3 (This Readme file explains the python environment setup with Miniconda3. Any other Python installation is also fine.)
+- Optional: Miniconda3 (This Readme file explains the python environment setup with Miniconda3. Any other Python environment manager is also fine.)
 
 # Clone the Repository
 
@@ -14,28 +14,18 @@ git clone https://github.com/Makowe/impl-attck --recurse-submodules
 # Repo Content
 
 ### chipwhisperer
+Simon Implementations in C (Unprotected + Masked)
 Reference Code and Notebooks
 
 The content of this folder comes from this [repository](https://github.com/Makowe/chipwhisperer).
-Is included as a git submodule.
-
-### chipwhisperer-traces 
-Sample Measurements required for performing reference attacks in `chipwhisperer`.
-
-The content of this folder comes from this [repository](https://github.com/newaetech/chipwhisperer-traces).
 It is included as a git submodule.
 
 ### simon
-Implementation of Simon Algorithm and Attack
-
-### literature
-
-Literature for the Latex Paper
+Implementation of Simon Algorithm in Python and Attack
 
 ### paper
 
 Latex Paper
-
 
 # Setup a Python environment
 
@@ -48,9 +38,8 @@ conda create -n simon python=3.13
 # Activate the newly created environment.
 conda activate simon
 
-# Go to the folder with the jupyter notebooks
-cd chipwhisperer
-cd jupyter
+# Go to the simon folder
+cd simon
 
 # Install all python libraries which are mentioned in the file requirements.txt. 
 # The libraries will be installed within your conda environment.

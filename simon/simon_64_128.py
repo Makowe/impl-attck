@@ -4,14 +4,19 @@ import logger
 
 N = 32
 M = 4
-Z = np.array([0b0011011011101011000110010111100000010010001010011100110100001111], dtype=np.uint64)
+Z = np.array(
+    [0b0011011011101011000110010111100000010010001010011100110100001111],
+    dtype=np.uint64,
+)
 T = 44
 
 
 def encrypt_block(
     plaintext: np.ndarray, key: np.ndarray
 ) -> tuple[np.ndarray, logger.Log]:
-    """Encrypt a single block using Simon."""
+    """Encrypt a single block using Simon.
+    Return the ciphertext and a log of the intermediate values.
+    """
     assert plaintext.dtype == np.uint32
     assert key.dtype == np.uint32
     assert plaintext.shape == (2,)
@@ -42,7 +47,7 @@ def encrypt_block(
             y
             ^ (rotate_left(x, 1) & rotate_left(x, 8))
             ^ rotate_left(x, 2)
-            ^ round_keys[i:i+1]
+            ^ round_keys[i : i + 1]
         )
         y = tmp
         log.add(x, f"X{i+1}")
@@ -63,7 +68,7 @@ def expand_key(key: np.ndarray) -> np.ndarray:
 
     for i in range(M, T):
 
-        tmp = rotate_left(expanded_key[i - 1:i], -3) ^ expanded_key[i - 3:i-2]
+        tmp = rotate_left(expanded_key[i - 1 : i], -3) ^ expanded_key[i - 3 : i - 2]
         tmp ^= rotate_left(tmp, -1)
 
         z_i = get_round_constant(i - M)

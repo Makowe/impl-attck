@@ -2,7 +2,7 @@
 
 - Git
 - VS Code
-- Optional: Miniconda3 (This Readme file explains the python environment setup with Miniconda3. Any other Python environment manager is also fine.)
+- A Python environment. This README file explains the setup steps for Miniconda3. Any other Python environment manager is also fine.
 
 # Clone the Repository
 
@@ -13,68 +13,81 @@ git clone https://github.com/Makowe/impl-attck --recurse-submodules
 
 # Repo Content
 
-### chipwhisperer
-Simon Implementations in C (Unprotected + Masked)
-Reference Code and Notebooks
+### C Code
+The Simon Implementations in C are located here:
+```
+./chipwhisperer/firmware/mcu/crypto/simon64_128.c
+./chipwhisperer/firmware/mcu/crypto/simon64_128.h
+./chipwhisperer/firmware/mcu/crypto/simon64_128_masked.c
+./chipwhisperer/firmware/mcu/crypto/simon64_128_masked.h
+```
+The Simple-Serial Projects for Simon are here:
+```
+./chipwhisperer/firmware/mcu/simple-serial-simon/*
+./chipwhisperer/firmware/mcu/simple-serial-simon-masked/*
+```
 
-The content of this folder comes from this [repository](https://github.com/Makowe/chipwhisperer).
-It is included as a git submodule.
+### Jupyter Notebooks and Python Code
 
-### simon
-Implementation of Simon Algorithm in Python and Attack
+The Jupyter Notebooks for Measurement, Attack and Evaluations are at:
+```
+./simon/*.ipynb
+```
 
-### paper
+Custom Python Functions for Encryption and Correlation Computation are located at:
+```
+./simon/*.py
+```
 
-Latex Paper
+The Jupyter Notebooks to generate diagrams and results are at:
+```
+simon/diagrams/*
+```
+
+### Demo Measurements:
+Two Demo Measurements with 2000 traces can be found at: 
+```
+./simon/traces/demo_simon_plain_2000/*
+./simon/traces/demo_simon_masked_2000/*
+```
+
+### Paper
+
+The Latex Paper is located at 
+```
+./paper/*
+```
 
 # Setup a Python environment
 
 Start a terminal inside the impl-attck folder. Run:
 
 ```
-# Create a new conda environment
+# Create a conda environment
 conda create -n simon python=3.13
 
-# Activate the newly created environment.
+# Activate the environment.
 conda activate simon
 
-# Go to the simon folder
+# Install the required python libraries 
 cd simon
-
-# Install all python libraries which are mentioned in the file requirements.txt. 
-# The libraries will be installed within your conda environment.
 pip install -r requirements.txt
+```
 
-# Start the Jupyter Notebook. This will open a browser window
+# Start the Jupyter Notebook
+Inside the Simon folder, run:
+```
 jupyter notebook
 ```
 
-# Run the Simon Code
-
-Use the previously created environment. Start a terminal inside the impl-attck folder. Run:
-
-```
-# Create a new conda environment
-conda activate simon
-
-# Go to the folder with the simon python code
-cd simon
-
-# Install required libraries via pip.
-pip install -r requirements.txt
-```
-
-## Run the example.py scipt
+# Run the example.py scipt
+Inside the Simon folder, run:
 ```
 python -m example
 ```
 
-## Run the Unittests
+# Run the Unittests
+Inside the Simon folder, run:
 ```
 python -m unittest
-```
-
-## Start the Jupyter Notebook for running the simulated attack
-```
-jupyter notebook
 ```

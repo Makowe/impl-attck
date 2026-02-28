@@ -43,7 +43,7 @@ This paper investigates implementation-level vulnerabilities of the lightweight 
 \end{abstract}
 
 \section{Introduction}
-Lightweight cryptography plays a crucial role in securing resource-constrained devices in the Internet of Things (IoT), where limitations in memory, power consumption, and computational capabilities must be carefully considered. The SIMON block cipher, introduced by the National Security Agency in 2013, is a family of lightweight block ciphers designed to achieve high performance in hardware while remaining efficient in software implementations.
+Lightweight cryptography plays a crucial role in securing resource-constrained devices in the Automotive and IoT industry, where limitations in memory, power consumption, and computational capabilities must be carefully considered. The SIMON block cipher, introduced by the National Security Agency in 2013, is a family of lightweight block ciphers designed to achieve high performance in hardware while remaining efficient in software implementations.
 
 SIMON, like many cryptographic algorithms, is susceptible to implementation-level attacks. In particular, side-channel attacks exploit physical leakage such as power consumption or electromagnetic radiation to recover secret information without breaking the underlying cryptographic primitive.
 
@@ -224,7 +224,7 @@ The best performance was achieved with $4 \leq b \leq 8$, meaning 4 to 8 key bit
     	\caption{Attack 2 (After AND-Gate)}
     \end{subfigure}
     
-    \caption{Maxmimum correlation values as the number of power traces increases.}
+    \caption{Maximum correlation values as the number of power traces increases.}
     \label{fig:correlation_evolution_plain}
 \end{figure}
 
@@ -289,7 +289,7 @@ The attacks were repeated on the masked implementation using 50,000 traces. At n
 \end{figure}
 
 \section{Statistical Leakage Assessment}
-\subsection{Methodology}
+\paragraph{Methodology}
 Welch's t-test (Test Vector Leakage Assessment, TVLA) was employed to detect leakage in both unprotected and masked implementations. Two sets of traces were collected in an alternating way:
 \begin{itemize}
     \item \textbf{Set 1:} Fixed key, fixed plaintext
@@ -298,7 +298,7 @@ Welch's t-test (Test Vector Leakage Assessment, TVLA) was employed to detect lea
 
 The t-value was computed for each time sample between set 1 and set 2. A threshold of \(|t|>4.5\) indicates that the mean power consumption in set 1 is significantly different from set 2 with 99.999\% confidence \cite{gilbert2011testing}. In a perfect implementation, the mean values of set 1 and 2 should be equal at every point in time. Therefore a high t-value is a indicator that confidential information might be leaked.
 
-\subsection{Results}
+\paragraph{Results}
 The t-value over time can be seen in Figure \ref{fig:leakage}.
 \begin{itemize}
     \item \textbf{Unprotected Simon:} Strong leakage was detected with t-values exceeding 600 at multiple time points, confirming high vulnerability to CPA attacks.

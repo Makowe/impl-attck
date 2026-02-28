@@ -37,7 +37,7 @@
 
 
 \begin{abstract}
-This paper investigates implementation-level vulnerabilities of the lightweight block cipher SIMON by means of power-based side-channel analysis. A software implementation on an embedded ARM Cortex-M4 target is analyzed, demonstrating that data-dependent power consumption enables practical key recovery using Correlation Power Analysis (CPA) with as few as 1000 traces. To mitigate these vulnerabilities, a Boolean masking countermeasure is implemented and its impact on attack feasibility evaluated. Experimental results show that masking increases the required traces for successful key recovery beyond 50,000, significantly reducing but not eliminating leakage. Welch's t-test is further employed for statistical leakage assessment, revealing strong data-dependent leakage (t-values up to 600) in unprotected implementations, while masked versions require substantially more traces for detectable leakage. These findings emphasize the importance of careful countermeasure design in lightweight cryptographic implementations.
+This paper investigates implementation-level vulnerabilities of the lightweight block cipher SIMON by means of power-based side-channel analysis. A software implementation on an embedded ARM Cortex-M4 target is analyzed, demonstrating that measuring power consumption enables key recovery using Correlation Power Analysis (CPA). To mitigate these vulnerabilities, boolean masking is implemented. Welch's t-test was performed for statistical leakage assessment. The results show high leakage in the unprotected implementation and significantly lower t-values in the masked implementation. These findings emphasize the importance of careful countermeasure design in lightweight cryptographic implementations.
 
 \keywords{lightweight cryptography, side-channel analysis, correlation power analysis, SIMON, masking, implementation security, ChipWhisperer}
 \end{abstract}
@@ -97,20 +97,20 @@ For each measurement, 50.000 traces with random plaintexts were recorded. 5 inde
 \begin{figure}[H]
 	\centering
 	\input{diagramSimonGuessedBits.tex}
-	\caption{In this example, the 8 right-most bits were guessed. This is a bad choice when attacking the AND-Gate because most of the resulting bits depend on key bits which are not guessed. The dark gray bits only depends on the guessed key bits. The light gray bits are also influenced by key bits which are not guessed. }
+	\caption{In this example, the 8 right-most bits were guessed. This is a bad choice when attacking the AND-Gate because only 1 bit in the attacked state purely depends on the guessed key bits. The 14 light gray bits depend partially on the guessed key bits but they are also influenced by key bits which are not guessed. This will result in low correlation values.}
 	\label{fig:badExample}
 \end{figure}
 
 \begin{figure}[H]
 	\centering
 	\input{diagramSimonGuessedBits2.tex}
-	\caption{Good choice for guessing 8 bits when attacking the AND-Gate. The guessed bits are distributed with a distance of 7 and therefore line up at the AND-Gate.}
+	\caption{Good choice for guessing 8 bits when attacking the AND-Gate. The guessed bits are distributed with a distance of 7 and therefore mostly line up at the AND-Gate.}
 	\label{fig:goodExample}
 \end{figure}
 
 \paragraph{Attack steps} The CPA attack was executed according to the following procedure:
 \begin{enumerate}
-	\item Collect $n$ power traces with $m$ samples each. The whole measurement is a tuple $(T, P, C)$. $T$ is a Matrix of size $(n,m)$ which contains all traces $t_i$. $P$ contain the plaintexts $p_i$ and $C$ contains the ciphertexts $c_i$.
+	\item Collect $n$ power traces with $m$ samples each. The whole measurement is a tuple $(T, P, C)$. $T$ is a Matrix of size $(n,m)$ which contains all traces. $P$ contain the plaintexts $p_i$ and $C$ contains the ciphertexts $c_i$.
 	$$T
 	=
 	\begin{pmatrix}
@@ -201,7 +201,7 @@ For the second attack, the graph is not symmetric. In the shown example, the cor
     \label{fig:cpa_correlation_traces}
 \end{figure}
 
-It was also analyzed how the correlation changes with an increasing number of captured traces. Figure \ref{fig:correlation_evolution_plain} shows the evolution for one measurement campaign and 8 bits being guessed. The experiments have shown that 1000 traces are enough to reliably extract the key. 
+It was also analyzed how the correlation changes with an increasing number of captured traces. Figure \ref{fig:correlation_evolution_plain} shows the evolution for one measurement campaign and 8 bits being guessed. The experiments have shown that 1000 traces are enough to reliably extract the key.
 
 For attack model 1, the correct key guess was always located within the Top 8 of all key guesses. Because of the symmetry, there are always at least 2 candidates that will be kept for the next attack round. The correlation threshold $\tau$ for marking a key candidate as promising was set to $0.02$.
 
@@ -209,7 +209,7 @@ For attack model 2, the correct key guess was often found as the top candidate, 
 This might be caused by the fact, that instead of 8 bits, only 7 bits are included in the Hamming weight calculation (see chapter 2.2 and Figure \ref{fig:goodExample} for explanation).
 The threshold $\tau$ was therefore increased to $0.03$ because otherwise the correct key might not be found.
 
-With the chosen parameters, both attacks are equally reliable and have a similar performance. The correct key can be extracted on a standard computer within a few seconds.
+The best performance was achieved with $4 \leq b \leq 8$, meaning 4 to 8 key bits are guessed in each attack step. With the chosen parameters, both attacks are equally reliable and have a similar performance. The correct key can be extracted on a standard computer within a few seconds.
 
 \begin{figure}[H]
     \centering
@@ -231,16 +231,16 @@ With the chosen parameters, both attacks are equally reliable and have a similar
 \section{Masking as a Countermeasure}
 Boolean masking with two shares was implemented as a countermeasure. 184 random bytes are generated before the encryption using a PRNG based on HMAC (see \cite{barker2015recommendation}). 8 bytes of randomness are used to mask the plaintext via XOR. 4 additional bytes are required in each of the 44 rounds to perform the AND-operation. The binary rotations and XOR-operations within the round do not require additional masks. The operations can be performed independently on both shares.
 
-Figure \ref{fig:simon_round_masked} shows the updated round function. The blue content is newly added compared to the original round function. The AND-Gate cannot be performed on both shares independently. The Trichina AND-Gate was implemented to avoid any leakage. The inputs of this AND-Gate are the shares of $a$ and $b$, additionally, a new mask $m_c$ is brought in. 
+Figure \ref{fig:simon_round_masked} shows the updated round function. The blue content is newly added compared to the original round function. The AND-Gate cannot be performed on both shares independently. The Trichina AND-Gate was implemented to avoid any leakage. The inputs of this AND-Gate are the shares of $a$ and $b$. Additionally, a new mask $m_c$ is brought in. 
 $$
-	a_m = a \oplus m_a \quad\quad b_m = b \oplus m_b \quad\quad c_m = c \oplus m_c 
+	a_m = a \oplus m_a \quad\quad b_m = b \oplus m_b
 $$
 The AND-Gate must generate the share $c_m$ such that:
 
 $$
 	c = a \cdot b \quad\rightarrow\quad c_m \oplus m_c = (a_m \oplus m_a) \cdot (b_m \oplus m_b)
 $$
-This equation can be rearranged to the following form. It can be shown that all intermediate values in this formula are independent from the sensitive values $a$, $b$ and $c$. \cite{EPRINT:Trichina03}, \cite{trichina2004small}
+This equation is rearranged to the following form. It can be shown that all intermediate values in this formula are independent from the sensitive values $a$, $b$ and $c$. \cite{EPRINT:Trichina03}, \cite{trichina2004small}
 
 $$
 	c_m = (((a_m  b_m \oplus m_c) \oplus a_m m_b) \oplus b_m m_a) \oplus m_a m_b
@@ -256,10 +256,9 @@ $$
 \paragraph{Avoiding Pitfalls} The masked implementation was written in Assembly language (ASM). Potential hamming distance leakage was taken into account during implementation. Literature shows that updating a CPU register will leak the hamming distance between old and new value. Also, performing two arithmetic instructions in a row leaks the hamming distance between input/output operands, even if different CPU registers are used in the two instructions. \cite{seuschek2015side}, \cite{CHES:BriClaOli04}
 
 To avoid leaking confidential information, following precautions were taken:
-
 \begin{itemize}
-	\item Masked values and the masks itself shall be stored in seperated registers. In our implementation, even register numbers were used for masked values and odd registers for masks.
-	\item Masked values and their corresponding masks shall not be processed in two consecutive instructions. Thereofore, dummy instructions were added to clear values within the arithmetic logical unit (ALU).
+	\item Masked values and the masks itself shall be stored in separated registers. In our implementation, even register numbers were used for masked values and odd registers for masks.
+	\item Masked values and their corresponding masks shall not be processed in two consecutive instructions. Therefore, dummy instructions were added to clear values within the arithmetic logical unit (ALU).
 	\item Intermediate values which occur, e.g., during the Trichina-AND-Gate, shall be cleared before being reused again.
 \end{itemize}
 
@@ -291,7 +290,7 @@ The attacks were repeated on the masked implementation using 50,000 traces. At n
 
 \section{Statistical Leakage Assessment}
 \subsection{Methodology}
-Welch's t-test (Test Vector Leakage Assessment, TVLA) was employed to detect leakage in both unprotected and masked implementations. Two sets of traces were collected:
+Welch's t-test (Test Vector Leakage Assessment, TVLA) was employed to detect leakage in both unprotected and masked implementations. Two sets of traces were collected in an alternating way:
 \begin{itemize}
     \item \textbf{Set 1:} Fixed key, fixed plaintext
     \item \textbf{Set 2:} Fixed key, random plaintexts
@@ -320,31 +319,32 @@ The t-value over time can be seen in Figure \ref{fig:leakage}.
     	\includegraphics[width=\linewidth]{../simon/diagrams/leakage_over_time_masked.pdf}
     	\caption{Masked Implementation}
     \end{subfigure}
-    \caption{Leakage assessment results for unprotected and masked Simon implementation using Welch's t-test.}
+    \caption{T-Value over time in the unprotected and masked Simon implementations}
     \label{fig:leakage}
 \end{figure}
 
-\section{Discussion}
-Our results demonstrate a clear trade-off between security and performance in lightweight cryptography implementations. The unprotected Simon cipher proved highly vulnerable to CPA attacks, with full key recovery possible using 1000 traces. The Boolean masking countermeasure significantly increased the attack complexity. Even with 50.000 traces it was not possible to recover the key.
-
-However, the masking implementation did not completely eliminate leakage, as evidenced by the TVLA results with large trace sets. This highlights several important considerations:
-\begin{itemize}
-    \item \textbf{Implementation quality:} The effectiveness of masking depends heavily on proper implementation, including secure random number generation and protection against higher-order attacks.
-    \item \textbf{Trace requirements:} While masking increases the number of traces required for successful attacks, determined attackers with sufficient measurement capabilities may still succeed.
-    \item \textbf{Performance overhead:} The masking implementation increased the encryption time by factor 4. Additional time is required for generating the random numbers. This may be acceptable for many IoT applications but could be prohibitive for extremely resource-constrained devices.
-\end{itemize}
 
 \section{Conclusion}
-This study demonstrates that an unprotected software implementation of SIMON-64/128 is highly vulnerable to Correlation Power Analysis, enabling full key recovery with as few as 1000 power traces. The application of Boolean masking as a countermeasure significantly increases the attack complexity, requiring over 50,000 traces while still showing detectable statistical leakage.
+This study demonstrates that an unprotected software implementation of SIMON-64/128 is highly vulnerable to Correlation Power Analysis, enabling full key recovery with 1000 power traces. The application of Boolean masking made the original attack fail and drastically reduced leakage. However, the t-values are not completely within the desired threshold of $4.5$.
 
-Our findings emphasize that while masking provides substantial protection against side-channel attacks, it does not offer absolute security and must be implemented carefully to avoid implementation flaws. Future work should investigate higher-order masking schemes and their practical applicability to resource-constrained IoT devices, as well as explore alternative countermeasures such as shuffling or dual-rail logic.
+Our results demonstrate a clear trade-off between security and performance in lightweight cryptography implementations. This highlights several important considerations:
 
-For practitioners implementing lightweight cryptography in IoT devices, we recommend:
 \begin{itemize}
-    \item Always implement side-channel countermeasures, even for algorithms designed for resource-constrained environments.
-    \item Conduct thorough leakage assessment using statistical tests like TVLA during development.
+	\item \textbf{Implementation quality:} The effectiveness of masking depends heavily on proper implementation, including secure random number generation avoiding hamming distance leakage.
+	\item \textbf{Other Attack methods:} While the original attack was not successful on the masked implementations, other approaches like Higher-Order CPA might still be possible.
+	\item \textbf{Performance overhead:} The masking implementation increased the encryption time by factor 4. Additional time is required for generating the random numbers. This may be acceptable for many IoT applications but could be prohibitive for extremely resource-constrained devices.
+\end{itemize}
+
+Future work should investigate higher-order masking schemes and their practical applicability to resource-constrained devices, as well as combining masking with alternative countermeasures.
+
+The performance of generating the random numbers was not in the scope of this paper. For real-world use cases, one should investigate if faster random number generators have an impact on the security and if masks can be reused in multiple rounds.
+
+When implementing lightweight cryptography devices, we recommend:
+\begin{itemize}
+    \item Evaluate the overall security of the hardware. Securing a device against side-channel attacks might not make sense if the device offers simpler attack vectors (e.g. unlocked JTAG interface)
+    \item Use widespread techniques like T-Test to evaluate leakage. Do not classify a implementation as secure just because the original attack is not working anymore.
     \item Consider the trade-offs between security, performance, and resource constraints when selecting countermeasures.
-    \item Regularly update implementations as new attack techniques and countermeasures emerge.
+    \item Stay updated on new attack techniques and countermeasures.
 \end{itemize}
 
 \appendix
